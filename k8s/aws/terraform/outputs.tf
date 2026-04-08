@@ -48,16 +48,6 @@ output "s3_videos_bucket_arn" {
   value       = aws_s3_bucket.videos.arn
 }
 
-output "ecr_metadata_service_url" {
-  description = "ECR URL for metadata service"
-  value       = aws_ecr_repository.metadata_service.repository_url
-}
-
-output "ecr_data_service_url" {
-  description = "ECR URL for data service"
-  value       = aws_ecr_repository.data_service.repository_url
-}
-
 output "vpc_id" {
   description = "VPC ID"
   value       = aws_vpc.main.id

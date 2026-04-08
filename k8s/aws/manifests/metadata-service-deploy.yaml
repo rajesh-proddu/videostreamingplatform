@@ -51,7 +51,7 @@ spec:
                       - on-demand
       containers:
         - name: metadata-service
-          image: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/videostreamingplatform/metadata-service:latest
+          image: ghcr.io/videostreamingplatform/metadata-service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http2

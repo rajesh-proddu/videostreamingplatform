@@ -51,7 +51,7 @@ spec:
                       - on-demand
       containers:
         - name: data-service
-          image: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/videostreamingplatform/data-service:latest
+          image: ghcr.io/videostreamingplatform/data-service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http2
