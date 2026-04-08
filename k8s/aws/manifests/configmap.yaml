@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: videostreamingplatform
+data:
+  ENVIRONMENT: aws
+  AWS_REGION: us-east-1
+  S3_BUCKET: videostreamingplatform-videos
+  LOG_LEVEL: info

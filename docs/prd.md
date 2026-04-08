@@ -12,11 +12,11 @@ Non functional Requirements
 
 Architecture 
 1. Modular monolith service for following operations
-    1.1 Meta data service (stores all videos meta data in mysql)
+    1.1 Meta data / control plane service (stores all videos meta data in mysql)
     1.2 Data service provides (stores videos info in s3)
     1.3 Search (search over meta data) 
 2. Recomendation engine (soft real time)
-    2.1 Publish watch history events to kafka
+    2.1 Publish watch/search history events to kafka
     2.2 Set up Spark ingestion workflow for reading from kafka and storing them in iceberg 
     2.3 Use LLMs for recommendation with RAG (fetch user watch history and provide it to LLM)  
 
@@ -29,7 +29,7 @@ tests
 
 
 ci/cd
-1. Use kind based k8s deployment in local
+1. Use kind based k8s deployment in local env(Ubunutu WSL running on windows with Docker desktop setup)
 2. Use AWS EKS in prod
 3. Github actions for static analysis, tests execution, compile, build and archiving images
 4. Use terraform as IaaS for deployment in both local and AWS 
@@ -54,4 +54,22 @@ Deployments
 Future extensions
 1. API gateway infront of all services
 2. Cross AZ deployments 
-3. CDN usage for cross region latency 
+3. CDN usage for cross region latency optimisations
+4. Hybrid Clouds deployments (local + AWS, control plane in AWS and data planes in AWS, Azure)
+
+
+languages choice
+1. Meta data service in golang
+2. data service in golang
+3. spark ingestion in python
+4. recommendation engine with RAG, LLM in python
+
+
+Engineering excelency guidelines
+1. Use SOLID design principles in applicable places
+2. Use appropriate CNCF principles (like 12 factor app) with micro services design patterns
+3. Languages specific coding guidelines
+4. REST API standrads with swagger documentation
+5. Events schema standards (backward, forward compatibility checks)
+6. Devops best practises 
+7. observability best practises 

@@ -1,0 +1,80 @@
+name: Deploy to AWS EKS (kubectl)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: 'Deployment environment'
+        options:
+          - dev
+          - prod
+        required: true
+      image_tag:
+        description: 'Docker image tag'
+        required: true
+        default: 'latest'
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy-eks:
+    runs-on: ubuntu-latest
+    environment: 
+      name: ${{ github.event.inputs.environment }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name videostreamingplatform-${{ github.event.inputs.environment }}
+
+      - name: Create or update namespace
+        run: |
+          kubectl create namespace videostreamingplatform --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy configmaps and secrets
+        run: |
+          kubectl apply -f k8s/aws/manifests/configmap.yaml
+          # Secrets should be managed separately via AWS Secrets Manager or sealed-secrets
+
+      - name: Deploy services
+        run: |
+          kubectl apply -f k8s/aws/manifests/services.yaml
+          kubectl apply -f k8s/aws/manifests/metadata-service-deploy.yaml
+          kubectl apply -f k8s/aws/manifests/data-service-deploy.yaml
+
+      - name: Update image tags
+        run: |
+          kubectl set image deployment/metadata-service metadata-service=ghcr.io/${{ github.repository }}/metadata-service:${{ github.event.inputs.image_tag }} \
+            -n videostreamingplatform --record
+          kubectl set image deployment/data-service data-service=ghcr.io/${{ github.repository }}/data-service:${{ github.event.inputs.image_tag }} \
+            -n videostreamingplatform --record
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/metadata-service -n videostreamingplatform --timeout=10m
+          kubectl rollout status deployment/data-service -n videostreamingplatform --timeout=10m
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n videostreamingplatform
+          kubectl get svc -n videostreamingplatform
+          kubectl logs -l app=metadata-service -n videostreamingplatform --tail=20
+
+      - name: Run smoke tests
+        run: |
+          METADATA_LB=$(kubectl get svc metadata-service -n videostreamingplatform -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "Testing metadata service at: $METADATA_LB"
+          curl -v http://$METADATA_LB:8080/health || true

@@ -1,0 +1,172 @@
+name: Deploy to AWS EKS (Terraform)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: 'Deployment environment'
+        options:
+          - dev
+          - prod
+        required: true
+      image_tag:
+        description: 'Docker image tag'
+        required: true
+        default: 'latest'
+      destroy:
+        type: boolean
+        description: 'Destroy infrastructure (WARNING: This will delete resources)'
+        required: false
+        default: false
+
+env:
+  AWS_REGION: us-east-1
+  TERRAFORM_VERSION: 1.5.0
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: 
+      name: ${{ github.event.inputs.environment }}
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      
+      - name: Terraform Init
+        working-directory: k8s/aws/terraform
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET }}" \
+            -backend-config="key=${{ github.event.inputs.environment }}/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ secrets.TERRAFORM_LOCK_TABLE }}" \
+            -backend-config="encrypt=true"
+      
+      - name: Terraform Plan
+        working-directory: k8s/aws/terraform
+        run: |
+          terraform plan \
+            -var-file="terraform.${{ github.event.inputs.environment }}.tfvars" \
+            -var="container_image_tag=${{ github.event.inputs.image_tag }}" \
+            -var="database_password=${{ secrets.DATABASE_PASSWORD }}" \
+            -var="database_host=${{ secrets.DATABASE_HOST }}" \
+            -out=tfplan
+      
+      - name: Terraform Apply
+        working-directory: k8s/aws/terraform
+        if: github.event.inputs.destroy == 'false'
+        run: |
+          terraform apply -auto-approve tfplan
+      
+      - name: Terraform Destroy
+        working-directory: k8s/aws/terraform
+        if: github.event.inputs.destroy == 'true'
+        run: |
+          terraform destroy \
+            -var-file="terraform.${{ github.event.inputs.environment }}.tfvars" \
+            -var="container_image_tag=${{ github.event.inputs.image_tag }}" \
+            -var="database_password=${{ secrets.DATABASE_PASSWORD }}" \
+            -var="database_host=${{ secrets.DATABASE_HOST }}" \
+            -auto-approve
+      
+      - name: Get deployment info
+        working-directory: k8s/aws/terraform
+        if: github.event.inputs.destroy == 'false'
+        run: |
+          echo "=== Deployment Outputs ===" 
+          terraform output -raw eks_cluster_name 2>/dev/null || echo "Cluster name not available yet"
+          terraform output -raw eks_cluster_endpoint 2>/dev/null || echo "Cluster endpoint not available yet"
+          echo ""
+          echo "=== Service Endpoints ===" 
+          terraform output rds_endpoint 2>/dev/null || echo "RDS endpoint not available yet"
+          terraform output s3_bucket_name 2>/dev/null || echo "S3 bucket not available yet"
+      
+      - name: Wait for services to be ready
+        if: github.event.inputs.destroy == 'false'
+        continue-on-error: true
+        run: |
+          CLUSTER_NAME="videostreamingplatform-${{ github.event.inputs.environment }}"
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name $CLUSTER_NAME
+          
+          echo "Waiting for metadata-service to be ready..."
+          kubectl rollout status deployment/metadata-service -n videostreamingplatform --timeout=10m || echo "⚠️ Metadata service timeout"
+          
+          echo "Waiting for data-service to be ready..."
+          kubectl rollout status deployment/data-service -n videostreamingplatform --timeout=10m || echo "⚠️ Data service timeout"
+      
+      - name: Run smoke tests
+        if: github.event.inputs.destroy == 'false'
+        run: |
+          CLUSTER_NAME="videostreamingplatform-${{ github.event.inputs.environment }}"
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name $CLUSTER_NAME
+          
+          echo "=== Pod Status ===" 
+          kubectl get pods -n videostreamingplatform
+          
+          echo ""
+          echo "=== Service Status ===" 
+          kubectl get svc -n videostreamingplatform
+          
+          echo ""
+          echo "=== Recent Logs ===" 
+          kubectl logs -l app=metadata-service -n videostreamingplatform --tail=20 || true
+          
+          echo ""
+          echo "=== Testing Metadata Service ===" 
+          METADATA_LB=$(kubectl get svc metadata-service -n videostreamingplatform -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "Metadata service endpoint: $METADATA_LB"
+          curl -v http://$METADATA_LB:8080/health || true
+      
+      - name: Slack Notification - Success
+        if: success() && github.event.inputs.destroy == 'false' && secrets.SLACK_WEBHOOK != ''
+        uses: slackapi/slack-github-action@v1
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+          payload: |
+            {
+              "text": "✅ Deployment to ${{ github.event.inputs.environment }} successful",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Deployment Status*\n✅ ${{ github.event.inputs.environment }} deployment successful\n*Image Tag:* ${{ github.event.inputs.image_tag }}"
+                  }
+                }
+              ]
+            }
+      
+      - name: Slack Notification - Failure
+        if: failure() && secrets.SLACK_WEBHOOK != ''
+        uses: slackapi/slack-github-action@v1
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+          payload: |
+            {
+              "text": "❌ Deployment to ${{ github.event.inputs.environment }} failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Deployment Status*\n❌ ${{ github.event.inputs.environment }} deployment failed\n*Image Tag:* ${{ github.event.inputs.image_tag }}\n*Workflow:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
+

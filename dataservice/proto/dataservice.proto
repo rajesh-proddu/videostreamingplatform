@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package dataservice;
+
+option go_package = "videostreamingplatform/dataservice/pb";
+
+message Upload {
+  string id = 1;
+  string video_id = 2;
+  string user_id = 3;
+  int64 total_size = 4;
+  int64 uploaded_size = 5;
+  int32 uploaded_chunks = 6;
+  int32 total_chunks = 7;
+  string status = 8;
+  double percentage = 9;
+  double speed_mbps = 10;
+  int64 estimated_seconds = 11;
+  string created_at = 12;
+  string updated_at = 13;
+  string completed_at = 14;
+}
+
+message UploadInitiateRequest {
+  string video_id = 1;
+  string user_id = 2;
+  int64 total_size = 3;
+}
+
+message UploadInitiateResponse {
+  string upload_id = 1;
+  int64 chunk_size = 2;
+  string message = 3;
+}
+
+message UploadChunkRequest {
+  string upload_id = 1;
+  int32 chunk_index = 2;
+  int32 total_chunks = 3;
+  string checksum = 4;
+  bytes chunk_data = 5;
+}
+
+message UploadChunkResponse {
+  string upload_id = 1;
+  int32 chunk_index = 2;
+  bool success = 3;
+  string message = 4;
+}
+
+message UploadProgressRequest {
+  string upload_id = 1;
+}
+
+message UploadProgressResponse {
+  string upload_id = 1;
+  double percentage = 2;
+  int64 uploaded_bytes = 3;
+  int64 total_bytes = 4;
+  int32 uploaded_chunks = 5;
+  int32 total_chunks = 6;
+  double speed_mbps = 7;
+  int64 estimated_seconds = 8;
+}
+
+message CompleteUploadRequest {
+  string upload_id = 1;
+  string final_checksum = 2;
+}
+
+message CompleteUploadResponse {
+  string upload_id = 1;
+  string status = 2;
+  string message = 3;
+}
+
+message ListUploadsRequest {
+  string user_id = 1;
+}
+
+message ListUploadsResponse {
+  repeated Upload uploads = 1;
+}
+
+service DataService {
+  rpc InitiateUpload(UploadInitiateRequest) returns (UploadInitiateResponse);
+  rpc UploadChunk(UploadChunkRequest) returns (UploadChunkResponse);
+  rpc GetUploadProgress(UploadProgressRequest) returns (UploadProgressResponse);
+  rpc CompleteUpload(CompleteUploadRequest) returns (CompleteUploadResponse);
+  rpc ListUploads(ListUploadsRequest) returns (ListUploadsResponse);
+}

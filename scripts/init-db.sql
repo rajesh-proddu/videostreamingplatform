@@ -1,0 +1,49 @@
+-- Create videos table
+CREATE TABLE IF NOT EXISTS videos (
+  id VARCHAR(36) PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  duration INT NOT NULL,
+  size_bytes BIGINT NOT NULL,
+  upload_status ENUM('PENDING', 'UPLOADING', 'COMPLETED', 'FAILED') DEFAULT 'PENDING',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_created_at (created_at),
+  INDEX idx_status (upload_status)
+);
+
+-- Create uploads table (track upload sessions)
+CREATE TABLE IF NOT EXISTS uploads (
+  id VARCHAR(36) PRIMARY KEY,
+  video_id VARCHAR(36) NOT NULL,
+  user_id VARCHAR(36) NOT NULL,
+  chunk_count INT DEFAULT 0,
+  completed_chunks INT DEFAULT 0,
+  status ENUM('INITIATED', 'IN_PROGRESS', 'COMPLETED', 'FAILED') DEFAULT 'INITIATED',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE,
+  INDEX idx_user_id (user_id),
+  INDEX idx_status (status)
+);
+
+-- Create download sessions table
+CREATE TABLE IF NOT EXISTS downloads (
+  id VARCHAR(36) PRIMARY KEY,
+  video_id VARCHAR(36) NOT NULL,
+  user_id VARCHAR(36) NOT NULL,
+  started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  completed_at TIMESTAMP NULL,
+  status ENUM('INITIATED', 'IN_PROGRESS', 'COMPLETED', 'FAILED') DEFAULT 'INITIATED',
+  FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE,
+  INDEX idx_user_id (user_id),
+  INDEX idx_video_id (video_id)
+);
+
+-- Create users table (basic, no auth yet)
+CREATE TABLE IF NOT EXISTS users (
+  id VARCHAR(36) PRIMARY KEY,
+  username VARCHAR(255) UNIQUE NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_username (username)
+);

@@ -1,0 +1,11 @@
+# act configuration for local GitHub Actions testing
+# Reference: https://github.com/nektos/act
+
+# Use the full Ubuntu image for better compatibility
+-P ubuntu-latest=ghcr.io/catthehacker/ubuntu:full-latest
+
+# Set container architecture
+--container-architecture linux/amd64
+
+# Verbose output
+-v

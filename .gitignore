@@ -1,0 +1,33 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+bin/
+vendor/
+.env
+
+# Docker
+docker-compose.override.yaml
+
+# Build outputs
+*.test
+coverage.out
+
+# IDE files
+*.iml

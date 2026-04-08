@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: videostreamingplatform
+data:
+  MYSQL_HOST: mysql.videostreamingplatform.svc.cluster.local
+  MYSQL_PORT: "3306"
+  MYSQL_DATABASE: videoplatform
+  MYSQL_USER: videouser
+  # MYSQL_PASSWORD should be in a Secret
+  
+  # S3/MinIO configuration
+  AWS_REGION: us-east-1
+  AWS_ENDPOINT_URL_S3: http://minio.videostreamingplatform.svc.cluster.local:9000
+  S3_BUCKET: videostreamingplatform
+  
+  # Kafka configuration
+  KAFKA_BROKERS: kafka.videostreamingplatform.svc.cluster.local:9092
+  
+  # Redis configuration
+  REDIS_HOST: redis.videostreamingplatform.svc.cluster.local
+  REDIS_PORT: "6379"
+  
+  # Elasticsearch configuration
+  ELASTICSEARCH_HOST: elasticsearch.videostreamingplatform.svc.cluster.local
+  ELASTICSEARCH_PORT: "9200"
