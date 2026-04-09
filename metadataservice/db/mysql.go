@@ -83,7 +83,7 @@ func (m *MySQL) ListVideos(ctx context.Context, limit, offset int) ([]*models.Vi
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var videos []*models.Video
 	for rows.Next() {

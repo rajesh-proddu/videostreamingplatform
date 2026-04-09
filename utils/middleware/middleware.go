@@ -35,7 +35,7 @@ func ErrorHandlingMiddleware(logger *observability.Logger, next http.Handler) ht
 				logger.Printf("panic recovered: %v", err)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintf(w, `{"type":"INTERNAL_ERROR","message":"Internal server error","status_code":500}`)
+				_, _ = fmt.Fprintf(w, `{"type":"INTERNAL_ERROR","message":"Internal server error","status_code":500}`)
 			}
 		}()
 		next.ServeHTTP(w, r)
@@ -79,13 +79,13 @@ func WriteError(w http.ResponseWriter, err error) {
 
 	if appErr, ok := err.(*errors.AppError); ok {
 		w.WriteHeader(appErr.HTTPStatus())
-		fmt.Fprintf(w,
+		_, _ = fmt.Fprintf(w,
 			`{"type":"%s","message":"%s","status_code":%d}`,
 			appErr.Type, appErr.Message, appErr.StatusCode)
 		return
 	}
 
 	w.WriteHeader(http.StatusInternalServerError)
-	fmt.Fprintf(w,
+	_, _ = fmt.Fprintf(w,
 		`{"type":"INTERNAL_ERROR","message":"Internal server error","status_code":500}`)
 }

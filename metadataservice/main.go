@@ -35,7 +35,7 @@ func main() {
 	if err != nil {
 		logger.Fatalf("Failed to connect to MySQL: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	// Check database connection
 	if err := database.Ping(context.Background()); err != nil {
@@ -87,5 +87,5 @@ func main() {
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"healthy"}`))
+	_, _ = w.Write([]byte(`{"status":"healthy"}`))
 }

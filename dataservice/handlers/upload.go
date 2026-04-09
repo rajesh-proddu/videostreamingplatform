@@ -73,7 +73,7 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to read file", http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Upload to S3
 	key := "videos/" + videoID
@@ -107,12 +107,15 @@ func (h *UploadHandler) Download(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to download file", http.StatusInternalServerError)
 		return
 	}
-	defer body.Close()
+	defer func() { _ = body.Close() }()
 
 	// Stream to client
 	w.Header().Set("Content-Type", "video/mp4")
 	w.Header().Set("Content-Disposition", "attachment; filename=video.mp4")
-	io.Copy(w, body)
+	if _, err := io.Copy(w, body); err != nil {
+		http.Error(w, "Failed to stream video", http.StatusInternalServerError)
+		return
+	}
 }
 
 // GetUploadProgress retrieves the progress of an upload

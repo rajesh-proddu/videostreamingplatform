@@ -27,7 +27,7 @@ func NewUploadSession(id, videoID string, size, chunkSize int64) *UploadSession 
 }
 
 func CalculateMD5(data io.ReadCloser) (string, error) {
-	defer data.Close()
+	defer func() { _ = data.Close() }()
 	h := md5.New()
 	if _, err := io.Copy(h, data); err != nil {
 		return "", err

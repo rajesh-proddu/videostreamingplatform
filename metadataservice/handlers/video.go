@@ -36,7 +36,7 @@ func (h *VideoHandler) CreateVideo(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(video)
+	_ = json.NewEncoder(w).Encode(video)
 }
 
 // GetVideo retrieves a video by ID
@@ -50,7 +50,7 @@ func (h *VideoHandler) GetVideo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(video)
+	_ = json.NewEncoder(w).Encode(video)
 }
 
 // UpdateVideo updates a video's metadata
@@ -70,7 +70,7 @@ func (h *VideoHandler) UpdateVideo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(video)
+	_ = json.NewEncoder(w).Encode(video)
 }
 
 // DeleteVideo deletes a video

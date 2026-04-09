@@ -93,7 +93,7 @@ func main() {
 	if err != nil {
 		logger.Fatalf("Failed to listen on gRPC port %d: %v", cfg.GRPCPort, err)
 	}
-	defer listener.Close()
+	defer func() { _ = listener.Close() }()
 
 	grpcServer := grpc.NewServer()
 	dataServiceServer := server.NewDataServiceServer(uploadService, logger.Logger)
@@ -109,5 +109,5 @@ func main() {
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"healthy"}`))
+	_, _ = w.Write([]byte(`{"status":"healthy"}`))
 }
