@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/yourusername/videostreamingplatform/dataservice/bl"
 	"github.com/yourusername/videostreamingplatform/dataservice/dl"
@@ -34,6 +37,17 @@ func main() {
 
 	logger.Printf("Starting DataService in %s environment", cfg.Envir)
 	logger.Printf("Config - HTTP: :%d, gRPC: :%d", cfg.HTTPPort, cfg.GRPCPort)
+
+	// Initialize OpenTelemetry tracing
+	if otelEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"); otelEndpoint != "" {
+		shutdown, err := observability.InitTracer(context.Background(), "dataservice", otelEndpoint)
+		if err != nil {
+			logger.Printf("WARNING: Failed to initialize tracing: %v", err)
+		} else {
+			defer func() { _ = shutdown(context.Background()) }()
+			logger.Printf("OpenTelemetry tracing enabled → %s", otelEndpoint)
+		}
+	}
 
 	// Initialize S3 client
 	s3Client, err := storage.NewS3Client(context.Background())
@@ -75,7 +89,7 @@ func main() {
 	go func() {
 		httpServer := &http.Server{
 			Addr:           httpAddr,
-			Handler:        httpHandler,
+			Handler:        otelhttp.NewHandler(httpHandler, "dataservice"),
 			ReadTimeout:    cfg.HTTPReadTimeout,
 			WriteTimeout:   cfg.HTTPWriteTimeout,
 			IdleTimeout:    cfg.HTTPIdleTimeout,

@@ -5,6 +5,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/yourusername/videostreamingplatform/metadataservice/bl"
 	"github.com/yourusername/videostreamingplatform/metadataservice/db"
@@ -28,6 +31,17 @@ func main() {
 
 	logger.Printf("Starting MetadataService in %s environment", cfg.Envir)
 	logger.Printf("Config - HTTP: :%d, MySQL: %s:%s", cfg.HTTPPort, cfg.MySQLHost, cfg.MySQLPort)
+
+	// Initialize OpenTelemetry tracing
+	if otelEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"); otelEndpoint != "" {
+		shutdown, err := observability.InitTracer(context.Background(), "metadataservice", otelEndpoint)
+		if err != nil {
+			logger.Printf("WARNING: Failed to initialize tracing: %v", err)
+		} else {
+			defer func() { _ = shutdown(context.Background()) }()
+			logger.Printf("OpenTelemetry tracing enabled → %s", otelEndpoint)
+		}
+	}
 
 	// Initialize database
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
@@ -77,7 +91,7 @@ func main() {
 	addr := fmt.Sprintf(":%d", cfg.HTTPPort)
 	server := &http.Server{
 		Addr:           addr,
-		Handler:        httpHandler,
+		Handler:        otelhttp.NewHandler(httpHandler, "metadataservice"),
 		ReadTimeout:    cfg.HTTPReadTimeout,
 		WriteTimeout:   cfg.HTTPWriteTimeout,
 		IdleTimeout:    cfg.HTTPIdleTimeout,
