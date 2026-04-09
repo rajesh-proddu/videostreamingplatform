@@ -4,8 +4,9 @@ on:
   push:
     branches: [main]
     paths:
-      - 'cmd/**'
-      - 'internal/**'
+      - 'metadataservice/**'
+      - 'dataservice/**'
+      - 'utils/**'
       - 'build/docker/**'
       - 'go.mod'
       - 'go.sum'
@@ -34,7 +35,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: ./build/docker/Dockerfile.metadata
+          file: ./build/docker/metadataservice.Dockerfile
           push: true
           tags: |
             ghcr.io/${{ github.repository }}/metadata-service:${{ github.sha }}
@@ -46,7 +47,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: ./build/docker/Dockerfile.data
+          file: ./build/docker/dataservice.Dockerfile
           push: true
           tags: |
             ghcr.io/${{ github.repository }}/data-service:${{ github.sha }}
