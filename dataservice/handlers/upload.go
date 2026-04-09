@@ -51,7 +51,7 @@ func (h *UploadHandler) InitiateUpload(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(upload)
+	_ = json.NewEncoder(w).Encode(upload)
 }
 
 // Upload handles file uploads to S3
@@ -84,7 +84,7 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "uploaded", "video_id": videoID})
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "uploaded", "video_id": videoID})
 }
 
 // Download handles file downloads from S3
@@ -138,7 +138,7 @@ func (h *UploadHandler) GetUploadProgress(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(upload)
+	_ = json.NewEncoder(w).Encode(upload)
 }
 
 // CompleteUpload finalizes an upload
@@ -161,5 +161,5 @@ func (h *UploadHandler) CompleteUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(upload)
+	_ = json.NewEncoder(w).Encode(upload)
 }
