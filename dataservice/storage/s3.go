@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -20,8 +21,19 @@ func NewS3Client(ctx context.Context) (*S3Client, error) {
 		return nil, fmt.Errorf("unable to load SDK config: %w", err)
 	}
 
-	client := s3.NewFromConfig(cfg)
-	bucket := "videostreamingplatform"
+	var opts []func(*s3.Options)
+	if endpoint := os.Getenv("AWS_ENDPOINT_URL"); endpoint != "" {
+		opts = append(opts, func(o *s3.Options) {
+			o.BaseEndpoint = &endpoint
+			o.UsePathStyle = true
+		})
+	}
+
+	client := s3.NewFromConfig(cfg, opts...)
+	bucket := os.Getenv("S3_BUCKET")
+	if bucket == "" {
+		bucket = "videostreamingplatform"
+	}
 
 	return &S3Client{
 		client: client,
@@ -71,4 +83,20 @@ func (s *S3Client) Exists(ctx context.Context, key string) (bool, error) {
 		return false, nil
 	}
 	return true, nil
+}
+
+// ListObjects lists objects with the given prefix
+func (s *S3Client) ListObjects(ctx context.Context, prefix string) ([]string, error) {
+	result, err := s.client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
+		Bucket: &s.bucket,
+		Prefix: &prefix,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var keys []string
+	for _, obj := range result.Contents {
+		keys = append(keys, *obj.Key)
+	}
+	return keys, nil
 }

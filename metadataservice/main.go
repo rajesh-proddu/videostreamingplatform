@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/yourusername/videostreamingplatform/metadataservice/bl"
 	"github.com/yourusername/videostreamingplatform/metadataservice/db"
+	"github.com/yourusername/videostreamingplatform/metadataservice/dl"
 	"github.com/yourusername/videostreamingplatform/metadataservice/handlers"
 
 	"github.com/yourusername/videostreamingplatform/utils/config"
@@ -44,8 +46,12 @@ func main() {
 
 	logger.Println("Connected to MySQL database")
 
+	// Initialize service layers
+	repo := dl.NewVideoRepository(database)
+	videoService := bl.NewVideoService(repo)
+
 	// Initialize HTTP handlers
-	handler := handlers.NewVideoHandler(nil) // Service will be injected
+	handler := handlers.NewVideoHandler(videoService)
 
 	// Set up routes
 	mux := http.NewServeMux()
