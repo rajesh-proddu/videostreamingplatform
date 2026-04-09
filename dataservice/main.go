@@ -67,6 +67,15 @@ func main() {
 	// Set up HTTP routes for streaming
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
+
+	// Prometheus metrics endpoint
+	metricsHandler, err := observability.InitMetrics("dataservice")
+	if err != nil {
+		logger.Printf("WARNING: Failed to initialize metrics: %v", err)
+	} else {
+		mux.Handle("/metrics", metricsHandler)
+	}
+
 	mux.HandleFunc("POST /uploads/initiate", uploadHandler.InitiateUpload)
 	mux.HandleFunc("POST /uploads/{uploadId}/chunks", uploadHandler.Upload)
 	mux.HandleFunc("GET /uploads/{uploadId}/progress", uploadHandler.GetUploadProgress)
