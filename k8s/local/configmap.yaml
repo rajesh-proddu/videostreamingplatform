@@ -8,20 +8,13 @@ data:
   MYSQL_PORT: "3306"
   MYSQL_DATABASE: videoplatform
   MYSQL_USER: videouser
-  # MYSQL_PASSWORD should be in a Secret
-  
+
   # S3/MinIO configuration
   AWS_REGION: us-east-1
-  AWS_ENDPOINT_URL_S3: http://minio.videostreamingplatform.svc.cluster.local:9000
-  S3_BUCKET: videostreamingplatform
-  
-  # Kafka configuration
-  KAFKA_BROKERS: kafka.videostreamingplatform.svc.cluster.local:9092
-  
-  # Redis configuration
-  REDIS_HOST: redis.videostreamingplatform.svc.cluster.local
-  REDIS_PORT: "6379"
-  
-  # Elasticsearch configuration
-  ELASTICSEARCH_HOST: elasticsearch.videostreamingplatform.svc.cluster.local
-  ELASTICSEARCH_PORT: "9200"
+  AWS_ENDPOINT_URL: http://minio.videostreamingplatform.svc.cluster.local:9000
+  AWS_ACCESS_KEY_ID: minioadmin
+  AWS_SECRET_ACCESS_KEY: minioadmin
+  S3_BUCKET: video-platform-storage
+
+  # Observability
+  OTEL_EXPORTER_OTLP_ENDPOINT: jaeger.videostreamingplatform.svc.cluster.local:4318

@@ -6,13 +6,14 @@ metadata:
   labels:
     app: metadata-service
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: metadata-service
   ports:
-    - name: http2
+    - name: http
       port: 8080
       targetPort: 8080
+      nodePort: 30080
       protocol: TCP
 
 ---
@@ -24,11 +25,12 @@ metadata:
   labels:
     app: data-service
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: data-service
   ports:
-    - name: http2
+    - name: http
       port: 8081
       targetPort: 8081
+      nodePort: 30081
       protocol: TCP

@@ -3,7 +3,7 @@ terraform {
   required_providers {
     kind = {
       source  = "tehcyx/kind"
-      version = "~> 0.2.1"
+      version = "~> 0.7.0"
     }
   }
 }
@@ -12,7 +12,7 @@ provider "kind" {}
 
 resource "kind_cluster" "default" {
   name           = "videostreamingplatform"
-  node_image     = "kindest/node:v1.28.0"
+  node_image     = "kindest/node:v1.32.2"
   wait_for_ready = true
 
   kind_config {
@@ -21,19 +21,36 @@ resource "kind_cluster" "default" {
 
     node {
       role = "control-plane"
+      extra_port_mappings {
+        container_port = 30080
+        host_port      = 8080
+        protocol       = "TCP"
+      }
+      extra_port_mappings {
+        container_port = 30081
+        host_port      = 8081
+        protocol       = "TCP"
+      }
+      extra_port_mappings {
+        container_port = 30090
+        host_port      = 9090
+        protocol       = "TCP"
+      }
+      extra_port_mappings {
+        container_port = 30686
+        host_port      = 16686
+        protocol       = "TCP"
+      }
+      extra_port_mappings {
+        container_port = 30300
+        host_port      = 3000
+        protocol       = "TCP"
+      }
     }
 
     node {
       role = "worker"
     }
-
-    node {
-      role = "worker"
-    }
-
-    containerd_config_patches = [
-      "[[plugins.\"io.containerd.grpc.v1.cri\".registry.mirrors.\"localhost:5000\"]]\n  endpoint = [\"http://localhost:5000\"]"
-    ]
   }
 }
 
@@ -42,7 +59,8 @@ output "cluster_name" {
   description = "Kind cluster name"
 }
 
-output "cluster_context" {
-  value       = kind_cluster.default.kubeconfig_context_name
-  description = "Kubernetes context name"
+output "kubeconfig" {
+  value       = kind_cluster.default.kubeconfig
+  description = "Kubeconfig for the cluster"
+  sensitive   = true
 }

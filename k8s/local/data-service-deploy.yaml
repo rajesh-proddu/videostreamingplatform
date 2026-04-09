@@ -6,7 +6,7 @@ metadata:
   labels:
     app: data-service
 spec:
-  replicas: 2
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -20,29 +20,20 @@ spec:
       labels:
         app: data-service
     spec:
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                labelSelector:
-                  matchExpressions:
-                    - key: app
-                      operator: In
-                      values:
-                        - data-service
-                topologyKey: kubernetes.io/hostname
       containers:
         - name: data-service
           image: videostreamingplatform/data-service:latest
           imagePullPolicy: IfNotPresent
           ports:
-            - name: http2
+            - name: http
               containerPort: 8081
               protocol: TCP
           envFrom:
             - configMapRef:
                 name: app-config
+          env:
+            - name: HTTP_PORT
+              value: "8081"
           resources:
             requests:
               cpu: 200m
@@ -53,20 +44,16 @@ spec:
           livenessProbe:
             httpGet:
               path: /health
-              port: http2
-            initialDelaySeconds: 10
+              port: http
+            initialDelaySeconds: 15
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /health
-              port: http2
+              port: http
             initialDelaySeconds: 5
             periodSeconds: 5
             timeoutSeconds: 2
             failureThreshold: 2
-          securityContext:
-            readOnlyRootFilesystem: true
-            runAsNonRoot: true
-            runAsUser: 1000
