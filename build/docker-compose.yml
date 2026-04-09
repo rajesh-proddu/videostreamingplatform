@@ -13,7 +13,7 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./build/docker/mysql-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ../scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - videostreamingplatform
     healthcheck:
@@ -63,7 +63,7 @@ services:
     image: prom/prometheus:latest
     container_name: videostreamingplatform-prometheus
     volumes:
-      - ./build/docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../scripts/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     ports:
       - "9090:9090"
@@ -100,7 +100,7 @@ services:
 
   metadataservice:
     build:
-      context: .
+      context: ..
       dockerfile: build/docker/metadataservice.Dockerfile
     container_name: videostreamingplatform-metadataservice
     environment:
@@ -131,13 +131,14 @@ services:
 
   dataservice:
     build:
-      context: .
+      context: ..
       dockerfile: build/docker/dataservice.Dockerfile
     container_name: videostreamingplatform-dataservice
     environment:
       ENVIRONMENT: dev
       LOG_LEVEL: info
       DEBUG_MODE: "true"
+      HTTP_PORT: "8081"
       S3_REGION: us-east-1
       S3_BUCKET: video-platform-storage
       AWS_ENDPOINT_URL: http://localstack:4566

@@ -31,3 +31,4 @@ coverage.out
 
 # IDE files
 *.iml
+coverage*.out

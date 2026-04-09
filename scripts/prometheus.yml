@@ -9,8 +9,8 @@ scrape_configs:
 
   - job_name: 'metadata-service'
     static_configs:
-      - targets: ['localhost:8080']
+      - targets: ['metadataservice:8080']
 
   - job_name: 'data-service'
     static_configs:
-      - targets: ['localhost:8081']
+      - targets: ['dataservice:8081']
