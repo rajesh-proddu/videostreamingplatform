@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mysql:
     image: mysql:8.0
@@ -23,21 +21,19 @@ services:
       interval: 5s
 
   localstack:
-    image: localstack/localstack:latest
+    image: localstack/localstack:3.8
     container_name: videostreamingplatform-localstack
     environment:
       SERVICES: s3
       DEBUG: 1
-      DATA_DIR: /tmp/localstack/data
     ports:
       - "4566:4566"
     volumes:
-      - "${TMPDIR:-.}/.localstack:/tmp/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
     networks:
       - videostreamingplatform
     healthcheck:
-      test: ["CMD", "awslocal", "s3", "ls"]
+      test: ["CMD-SHELL", "curl -f http://localhost:4566/_localstack/health || exit 1"]
       timeout: 3s
       retries: 10
       interval: 5s
@@ -54,7 +50,7 @@ services:
     networks:
       - videostreamingplatform
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:14269"]
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:14269/ || exit 1"]
       timeout: 3s
       retries: 10
       interval: 5s
@@ -73,7 +69,7 @@ services:
     networks:
       - videostreamingplatform
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9090/-/healthy"]
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
       timeout: 3s
       retries: 10
       interval: 5s
@@ -93,7 +89,7 @@ services:
       prometheus:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:3000/api/health || exit 1"]
       timeout: 3s
       retries: 10
       interval: 5s
@@ -124,7 +120,7 @@ services:
     networks:
       - videostreamingplatform
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8080/health || exit 1"]
       timeout: 3s
       retries: 10
       interval: 5s
@@ -155,7 +151,7 @@ services:
     networks:
       - videostreamingplatform
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8081/health || exit 1"]
       timeout: 3s
       retries: 10
       interval: 5s
