@@ -1,0 +1,237 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "title": "Goroutines",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 15, "lineWidth": 2 },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "go_goroutines{job=\"metadata-service\"}",
+          "legendFormat": "metadata-service",
+          "refId": "A"
+        },
+        {
+          "expr": "go_goroutines{job=\"data-service\"}",
+          "legendFormat": "data-service",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "Heap Memory In Use",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 15, "lineWidth": 2 },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "go_memstats_heap_inuse_bytes{job=\"metadata-service\"}",
+          "legendFormat": "metadata-service heap inuse",
+          "refId": "A"
+        },
+        {
+          "expr": "go_memstats_heap_inuse_bytes{job=\"data-service\"}",
+          "legendFormat": "data-service heap inuse",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "Heap Allocated vs System",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "lineWidth": 2 },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "go_memstats_heap_alloc_bytes{job=\"metadata-service\"}",
+          "legendFormat": "metadata alloc",
+          "refId": "A"
+        },
+        {
+          "expr": "go_memstats_heap_sys_bytes{job=\"metadata-service\"}",
+          "legendFormat": "metadata sys",
+          "refId": "B"
+        },
+        {
+          "expr": "go_memstats_heap_alloc_bytes{job=\"data-service\"}",
+          "legendFormat": "data alloc",
+          "refId": "C"
+        },
+        {
+          "expr": "go_memstats_heap_sys_bytes{job=\"data-service\"}",
+          "legendFormat": "data sys",
+          "refId": "D"
+        }
+      ]
+    },
+    {
+      "title": "GC Duration",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "lineWidth": 2 },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "rate(go_gc_duration_seconds_sum{job=\"metadata-service\"}[5m])",
+          "legendFormat": "metadata-service GC time/s",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(go_gc_duration_seconds_sum{job=\"data-service\"}[5m])",
+          "legendFormat": "data-service GC time/s",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "Heap Objects",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "lineWidth": 2 },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "go_memstats_heap_objects{job=\"metadata-service\"}",
+          "legendFormat": "metadata-service",
+          "refId": "A"
+        },
+        {
+          "expr": "go_memstats_heap_objects{job=\"data-service\"}",
+          "legendFormat": "data-service",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "Memory Allocation Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "lineWidth": 2 },
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "rate(go_memstats_alloc_bytes_total{job=\"metadata-service\"}[5m])",
+          "legendFormat": "metadata-service",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(go_memstats_alloc_bytes_total{job=\"data-service\"}[5m])",
+          "legendFormat": "data-service",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "Stack Memory",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "lineWidth": 2 },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "go_memstats_stack_inuse_bytes{job=\"metadata-service\"}",
+          "legendFormat": "metadata-service",
+          "refId": "A"
+        },
+        {
+          "expr": "go_memstats_stack_inuse_bytes{job=\"data-service\"}",
+          "legendFormat": "data-service",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "OS Threads",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "lineWidth": 2 },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "go_threads{job=\"metadata-service\"}",
+          "legendFormat": "metadata-service",
+          "refId": "A"
+        },
+        {
+          "expr": "go_threads{job=\"data-service\"}",
+          "legendFormat": "data-service",
+          "refId": "B"
+        }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["video-streaming", "go-runtime"],
+  "templating": { "list": [] },
+  "time": { "from": "now-30m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Go Runtime",
+  "uid": "go-runtime",
+  "version": 1
+}

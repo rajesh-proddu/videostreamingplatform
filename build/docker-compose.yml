@@ -85,6 +85,8 @@ services:
       - "3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
+      - ../scripts/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../scripts/grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks:
       - videostreamingplatform
     depends_on:

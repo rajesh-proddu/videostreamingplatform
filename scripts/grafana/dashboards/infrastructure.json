@@ -1,0 +1,169 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "title": "CPU Usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 15, "lineWidth": 2 },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "rate(process_cpu_seconds_total{job=\"metadata-service\"}[1m])",
+          "legendFormat": "metadata-service",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(process_cpu_seconds_total{job=\"data-service\"}[1m])",
+          "legendFormat": "data-service",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "Resident Memory (RSS)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 15, "lineWidth": 2 },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "process_resident_memory_bytes{job=\"metadata-service\"}",
+          "legendFormat": "metadata-service",
+          "refId": "A"
+        },
+        {
+          "expr": "process_resident_memory_bytes{job=\"data-service\"}",
+          "legendFormat": "data-service",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "Virtual Memory",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "lineWidth": 2 },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "process_virtual_memory_bytes{job=\"metadata-service\"}",
+          "legendFormat": "metadata-service",
+          "refId": "A"
+        },
+        {
+          "expr": "process_virtual_memory_bytes{job=\"data-service\"}",
+          "legendFormat": "data-service",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "Open File Descriptors",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "lineWidth": 2 },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "process_open_fds{job=\"metadata-service\"}",
+          "legendFormat": "metadata-service open",
+          "refId": "A"
+        },
+        {
+          "expr": "process_max_fds{job=\"metadata-service\"}",
+          "legendFormat": "metadata-service max",
+          "refId": "B"
+        },
+        {
+          "expr": "process_open_fds{job=\"data-service\"}",
+          "legendFormat": "data-service open",
+          "refId": "C"
+        },
+        {
+          "expr": "process_max_fds{job=\"data-service\"}",
+          "legendFormat": "data-service max",
+          "refId": "D"
+        }
+      ]
+    },
+    {
+      "title": "Network I/O",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "lineWidth": 2 },
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "rate(process_network_receive_bytes_total{job=\"metadata-service\"}[1m])",
+          "legendFormat": "metadata-service rx",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(process_network_transmit_bytes_total{job=\"metadata-service\"}[1m])",
+          "legendFormat": "metadata-service tx",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(process_network_receive_bytes_total{job=\"data-service\"}[1m])",
+          "legendFormat": "data-service rx",
+          "refId": "C"
+        },
+        {
+          "expr": "rate(process_network_transmit_bytes_total{job=\"data-service\"}[1m])",
+          "legendFormat": "data-service tx",
+          "refId": "D"
+        }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["video-streaming", "infrastructure"],
+  "templating": { "list": [] },
+  "time": { "from": "now-30m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Infrastructure",
+  "uid": "infrastructure",
+  "version": 1
+}
