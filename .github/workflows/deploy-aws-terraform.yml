@@ -200,7 +200,8 @@ jobs:
         continue-on-error: true
         uses: slackapi/slack-github-action@v2
         with:
-          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+          webhook: ${{ secrets.SLACK_WEBHOOK }}
+          webhook-type: incoming-webhook
           payload: |
             {
               "text": "✅ Deployment to ${{ github.event.inputs.environment }} successful",
@@ -220,7 +221,8 @@ jobs:
         continue-on-error: true
         uses: slackapi/slack-github-action@v2
         with:
-          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+          webhook: ${{ secrets.SLACK_WEBHOOK }}
+          webhook-type: incoming-webhook
           payload: |
             {
               "text": "❌ Deployment to ${{ github.event.inputs.environment }} failed",
