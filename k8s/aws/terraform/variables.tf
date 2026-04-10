@@ -34,7 +34,7 @@ variable "private_subnet_cidrs" {
 variable "kubernetes_version" {
   description = "Kubernetes version"
   type        = string
-  default     = "1.28"
+  default     = "1.32"
 }
 
 variable "node_group_min_size" {
@@ -74,16 +74,10 @@ variable "rds_master_password" {
   sensitive   = true
 }
 
-variable "rds_instance_count" {
-  description = "Number of RDS instances in cluster"
-  type        = number
-  default     = 2
-}
-
 variable "rds_instance_class" {
   description = "RDS instance class"
   type        = string
-  default     = "db.t3.medium"
+  default     = "db.t3.micro"
 }
 
 variable "s3_video_retention_days" {

@@ -291,6 +291,7 @@ EOF
         "iam:ListRolePolicies", "iam:TagRole", "iam:UntagRole",
         "iam:GetOpenIDConnectProvider", "iam:CreateOpenIDConnectProvider",
         "iam:DeleteOpenIDConnectProvider", "iam:ListOpenIDConnectProviders",
+        "iam:TagOpenIDConnectProvider", "iam:UntagOpenIDConnectProvider",
         "iam:CreatePolicy", "iam:DeletePolicy", "iam:GetPolicy",
         "iam:ListPolicyVersions", "iam:CreatePolicyVersion", "iam:DeletePolicyVersion",
         "iam:GetPolicyVersion",
