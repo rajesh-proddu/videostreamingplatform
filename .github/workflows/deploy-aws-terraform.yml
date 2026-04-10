@@ -63,7 +63,7 @@ jobs:
           terraform plan \
             -var-file="terraform.${{ github.event.inputs.environment }}.tfvars" \
             -var="container_image_tag=${{ github.event.inputs.image_tag }}" \
-            -var="database_password=${{ secrets.DATABASE_PASSWORD }}" \
+            -var="rds_master_password=${{ secrets.DATABASE_PASSWORD }}" \
             -out=tfplan
       
       - name: Terraform Apply
@@ -79,21 +79,63 @@ jobs:
           terraform destroy \
             -var-file="terraform.${{ github.event.inputs.environment }}.tfvars" \
             -var="container_image_tag=${{ github.event.inputs.image_tag }}" \
-            -var="database_password=${{ secrets.DATABASE_PASSWORD }}" \
+            -var="rds_master_password=${{ secrets.DATABASE_PASSWORD }}" \
             -auto-approve
       
       - name: Get deployment info
         working-directory: k8s/aws/terraform
         if: github.event.inputs.destroy == 'false'
+        id: tf-outputs
         run: |
           echo "=== Deployment Outputs ===" 
-          terraform output -raw eks_cluster_name 2>/dev/null || echo "Cluster name not available yet"
-          terraform output -raw eks_cluster_endpoint 2>/dev/null || echo "Cluster endpoint not available yet"
-          echo ""
-          echo "=== Service Endpoints ===" 
-          terraform output rds_endpoint 2>/dev/null || echo "RDS endpoint not available yet"
-          terraform output s3_bucket_name 2>/dev/null || echo "S3 bucket not available yet"
-      
+          EKS_NAME=$(terraform output -raw eks_cluster_name 2>/dev/null || echo "")
+          EKS_ENDPOINT=$(terraform output -raw eks_cluster_endpoint 2>/dev/null || echo "")
+          RDS_ENDPOINT=$(terraform output -raw rds_cluster_endpoint 2>/dev/null || echo "")
+          RDS_DB_NAME=$(terraform output -raw rds_database_name 2>/dev/null || echo "videoplatform")
+          S3_BUCKET=$(terraform output -raw s3_videos_bucket 2>/dev/null || echo "")
+          IRSA_META_ARN=$(terraform output -raw metadata_service_irsa_role_arn 2>/dev/null || echo "")
+          IRSA_DATA_ARN=$(terraform output -raw data_service_irsa_role_arn 2>/dev/null || echo "")
+          echo "eks_name=${EKS_NAME}" >> "$GITHUB_OUTPUT"
+          echo "rds_endpoint=${RDS_ENDPOINT}" >> "$GITHUB_OUTPUT"
+          echo "rds_db_name=${RDS_DB_NAME}" >> "$GITHUB_OUTPUT"
+          echo "s3_bucket=${S3_BUCKET}" >> "$GITHUB_OUTPUT"
+          echo "irsa_meta_arn=${IRSA_META_ARN}" >> "$GITHUB_OUTPUT"
+          echo "irsa_data_arn=${IRSA_DATA_ARN}" >> "$GITHUB_OUTPUT"
+          echo "Cluster: ${EKS_NAME}"
+          echo "Endpoint: ${EKS_ENDPOINT}"
+          echo "RDS: ${RDS_ENDPOINT}"
+          echo "S3: ${S3_BUCKET}"
+
+      - name: Configure K8s resources
+        if: github.event.inputs.destroy == 'false'
+        run: |
+          CLUSTER_NAME="videostreamingplatform-${{ github.event.inputs.environment }}"
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name $CLUSTER_NAME
+
+          # Create namespace
+          kubectl apply -f k8s/aws/manifests/namespace.yaml
+
+          # Create rds-credentials secret from Terraform outputs
+          kubectl create secret generic rds-credentials \
+            --namespace videostreamingplatform \
+            --from-literal=host="${{ steps.tf-outputs.outputs.rds_endpoint }}" \
+            --from-literal=username="admin" \
+            --from-literal=password="${{ secrets.DATABASE_PASSWORD }}" \
+            --from-literal=database="${{ steps.tf-outputs.outputs.rds_db_name }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # Update ConfigMap with dynamic S3 bucket
+          export S3_BUCKET="${{ steps.tf-outputs.outputs.s3_bucket }}"
+          export AWS_REGION="${{ env.AWS_REGION }}"
+          envsubst < k8s/aws/manifests/configmap.yaml | kubectl apply -f -
+
+          # Update deploy manifests with IRSA role ARNs
+          export IRSA_METADATA_ROLE_ARN="${{ steps.tf-outputs.outputs.irsa_meta_arn }}"
+          export IRSA_DATA_ROLE_ARN="${{ steps.tf-outputs.outputs.irsa_data_arn }}"
+          envsubst < k8s/aws/manifests/metadata-service-deploy.yaml | kubectl apply -f -
+          envsubst < k8s/aws/manifests/data-service-deploy.yaml | kubectl apply -f -
+          kubectl apply -f k8s/aws/manifests/services.yaml
+
       - name: Wait for services to be ready
         if: github.event.inputs.destroy == 'false'
         id: rollout

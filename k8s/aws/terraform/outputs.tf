@@ -67,3 +67,18 @@ output "eks_node_group_status" {
   description = "EKS node group status"
   value       = aws_eks_node_group.main.status
 }
+
+output "metadata_service_irsa_role_arn" {
+  description = "IRSA role ARN for metadata-service"
+  value       = aws_iam_role.metadata_service_irsa.arn
+}
+
+output "data_service_irsa_role_arn" {
+  description = "IRSA role ARN for data-service"
+  value       = aws_iam_role.data_service_irsa.arn
+}
+
+output "eks_oidc_provider_arn" {
+  description = "EKS OIDC provider ARN"
+  value       = aws_iam_openid_connect_provider.eks.arn
+}

@@ -162,3 +162,129 @@ resource "aws_eks_node_group" "main" {
     aws_iam_role_policy_attachment.eks_container_registry_policy,
   ]
 }
+
+# ─── OIDC Provider for IRSA ─────────────────────────────────────────────────
+
+data "tls_certificate" "eks" {
+  url = aws_eks_cluster.main.identity[0].oidc[0].issuer
+}
+
+resource "aws_iam_openid_connect_provider" "eks" {
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [data.tls_certificate.eks.certificates[0].sha1_fingerprint]
+  url             = aws_eks_cluster.main.identity[0].oidc[0].issuer
+
+  tags = {
+    Name = "eks-oidc-provider"
+  }
+}
+
+locals {
+  oidc_provider     = replace(aws_iam_openid_connect_provider.eks.url, "https://", "")
+  oidc_provider_arn = aws_iam_openid_connect_provider.eks.arn
+}
+
+# ─── IRSA: metadata-service (RDS access) ────────────────────────────────────
+
+resource "aws_iam_role" "metadata_service_irsa" {
+  name = "metadata-service-irsa-${var.environment}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Federated = local.oidc_provider_arn
+      }
+      Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "${local.oidc_provider}:aud" = "sts.amazonaws.com"
+          "${local.oidc_provider}:sub" = "system:serviceaccount:videostreamingplatform:metadata-service"
+        }
+      }
+    }]
+  })
+
+  tags = {
+    Name = "metadata-service-irsa"
+  }
+}
+
+resource "aws_iam_role_policy" "metadata_service_rds" {
+  name = "rds-access"
+  role = aws_iam_role.metadata_service_irsa.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "rds-db:connect"
+        ]
+        Resource = "arn:aws:rds-db:${var.aws_region}:${data.aws_caller_identity.current.account_id}:dbuser:${aws_rds_cluster.main.cluster_resource_id}/*"
+      }
+    ]
+  })
+}
+
+# ─── IRSA: data-service (S3 access) ─────────────────────────────────────────
+
+resource "aws_iam_role" "data_service_irsa" {
+  name = "data-service-irsa-${var.environment}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Federated = local.oidc_provider_arn
+      }
+      Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "${local.oidc_provider}:aud" = "sts.amazonaws.com"
+          "${local.oidc_provider}:sub" = "system:serviceaccount:videostreamingplatform:data-service"
+        }
+      }
+    }]
+  })
+
+  tags = {
+    Name = "data-service-irsa"
+  }
+}
+
+resource "aws_iam_role_policy" "data_service_s3" {
+  name = "s3-access"
+  role = aws_iam_role.data_service_irsa.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = [
+          aws_s3_bucket.videos.arn,
+          "${aws_s3_bucket.videos.arn}/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = [aws_kms_key.s3.arn]
+      }
+    ]
+  })
+}

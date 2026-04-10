@@ -4,7 +4,7 @@ metadata:
   name: metadata-service
   namespace: videostreamingplatform
   annotations:
-    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/metadata-service-role
+    eks.amazonaws.com/role-arn: ${IRSA_METADATA_ROLE_ARN}
 
 ---
 apiVersion: apps/v1

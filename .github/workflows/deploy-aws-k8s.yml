@@ -56,13 +56,30 @@ jobs:
 
       - name: Deploy configmaps and secrets
         run: |
-          kubectl apply -f k8s/aws/manifests/configmap.yaml
+          # Apply namespace first
+          kubectl apply -f k8s/aws/manifests/namespace.yaml
+
+          # Create rds-credentials secret (values from Terraform or GitHub secrets)
+          kubectl create secret generic rds-credentials \
+            --namespace videostreamingplatform \
+            --from-literal=host="${{ secrets.RDS_ENDPOINT }}" \
+            --from-literal=username="admin" \
+            --from-literal=password="${{ secrets.DATABASE_PASSWORD }}" \
+            --from-literal=database="videoplatform" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # Apply configmap with dynamic S3 bucket name
+          export S3_BUCKET="${{ secrets.S3_VIDEOS_BUCKET }}"
+          export AWS_REGION="${{ env.AWS_REGION }}"
+          envsubst < k8s/aws/manifests/configmap.yaml | kubectl apply -f -
 
       - name: Deploy services
         run: |
+          export IRSA_METADATA_ROLE_ARN="${{ secrets.IRSA_METADATA_ROLE_ARN }}"
+          export IRSA_DATA_ROLE_ARN="${{ secrets.IRSA_DATA_ROLE_ARN }}"
           kubectl apply -f k8s/aws/manifests/services.yaml
-          kubectl apply -f k8s/aws/manifests/metadata-service-deploy.yaml
-          kubectl apply -f k8s/aws/manifests/data-service-deploy.yaml
+          envsubst < k8s/aws/manifests/metadata-service-deploy.yaml | kubectl apply -f -
+          envsubst < k8s/aws/manifests/data-service-deploy.yaml | kubectl apply -f -
 
       - name: Update image tags
         run: |

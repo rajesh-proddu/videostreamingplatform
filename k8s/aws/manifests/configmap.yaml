@@ -6,5 +6,5 @@ metadata:
 data:
   ENVIRONMENT: aws
   AWS_REGION: us-east-1
-  S3_BUCKET: videostreamingplatform-videos
+  S3_BUCKET: ${S3_BUCKET}
   LOG_LEVEL: info
