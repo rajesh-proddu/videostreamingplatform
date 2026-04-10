@@ -293,7 +293,8 @@ EOF
         "iam:DeleteOpenIDConnectProvider", "iam:ListOpenIDConnectProviders",
         "iam:CreatePolicy", "iam:DeletePolicy", "iam:GetPolicy",
         "iam:ListPolicyVersions", "iam:CreatePolicyVersion", "iam:DeletePolicyVersion",
-        "iam:GetPolicyVersion"
+        "iam:GetPolicyVersion",
+        "iam:CreateServiceLinkedRole"
       ],
       "Resource": "*"
     },
