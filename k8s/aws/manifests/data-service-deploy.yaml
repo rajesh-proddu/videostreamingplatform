@@ -56,13 +56,15 @@ spec:
           env:
             - name: HTTP_PORT
               value: "8081"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "jaeger.observability.svc.cluster.local:4318"
           resources:
             requests:
-              cpu: 500m
-              memory: 512Mi
+              cpu: 200m
+              memory: 256Mi
             limits:
-              cpu: 2000m
-              memory: 2Gi
+              cpu: 1000m
+              memory: 1Gi
           livenessProbe:
             httpGet:
               path: /health

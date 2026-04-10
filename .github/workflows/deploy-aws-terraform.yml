@@ -136,6 +136,22 @@ jobs:
           envsubst < k8s/aws/manifests/data-service-deploy.yaml | kubectl apply -f -
           kubectl apply -f k8s/aws/manifests/services.yaml
 
+          # Deploy observability stack
+          kubectl apply -f k8s/aws/manifests/observability/namespace.yaml
+          kubectl apply -f k8s/aws/manifests/observability/prometheus.yaml
+          kubectl apply -f k8s/aws/manifests/observability/jaeger.yaml
+          kubectl apply -f k8s/aws/manifests/observability/grafana-dashboards-cm.yaml
+          kubectl apply -f k8s/aws/manifests/observability/grafana.yaml
+
+          # Initialize database schema (idempotent)
+          kubectl run db-init --rm -i --restart=Never \
+            --namespace videostreamingplatform \
+            --image=mysql:8.0 \
+            -- mysql -h "${{ steps.tf-outputs.outputs.rds_host }}" \
+            -u admin -p'${{ secrets.DATABASE_PASSWORD }}' \
+            ${{ steps.tf-outputs.outputs.rds_db_name }} \
+            -e "$(cat scripts/init-db.sql)" || true
+
       - name: Wait for services to be ready
         if: github.event.inputs.destroy == 'false'
         id: rollout

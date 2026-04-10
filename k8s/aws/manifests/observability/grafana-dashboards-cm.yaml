@@ -1,0 +1,668 @@
+apiVersion: v1
+data:
+  go-runtime.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [],
+      "panels": [
+        {
+          "title": "Goroutines",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 15, "lineWidth": 2 },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "go_goroutines{job=\"metadata-service\"}",
+              "legendFormat": "metadata-service",
+              "refId": "A"
+            },
+            {
+              "expr": "go_goroutines{job=\"data-service\"}",
+              "legendFormat": "data-service",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "title": "Heap Memory In Use",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 15, "lineWidth": 2 },
+              "unit": "bytes"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "go_memstats_heap_inuse_bytes{job=\"metadata-service\"}",
+              "legendFormat": "metadata-service heap inuse",
+              "refId": "A"
+            },
+            {
+              "expr": "go_memstats_heap_inuse_bytes{job=\"data-service\"}",
+              "legendFormat": "data-service heap inuse",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "title": "Heap Allocated vs System",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 10, "lineWidth": 2 },
+              "unit": "bytes"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "go_memstats_heap_alloc_bytes{job=\"metadata-service\"}",
+              "legendFormat": "metadata alloc",
+              "refId": "A"
+            },
+            {
+              "expr": "go_memstats_heap_sys_bytes{job=\"metadata-service\"}",
+              "legendFormat": "metadata sys",
+              "refId": "B"
+            },
+            {
+              "expr": "go_memstats_heap_alloc_bytes{job=\"data-service\"}",
+              "legendFormat": "data alloc",
+              "refId": "C"
+            },
+            {
+              "expr": "go_memstats_heap_sys_bytes{job=\"data-service\"}",
+              "legendFormat": "data sys",
+              "refId": "D"
+            }
+          ]
+        },
+        {
+          "title": "GC Duration",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 10, "lineWidth": 2 },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "rate(go_gc_duration_seconds_sum{job=\"metadata-service\"}[5m])",
+              "legendFormat": "metadata-service GC time/s",
+              "refId": "A"
+            },
+            {
+              "expr": "rate(go_gc_duration_seconds_sum{job=\"data-service\"}[5m])",
+              "legendFormat": "data-service GC time/s",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "title": "Heap Objects",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 10, "lineWidth": 2 },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "go_memstats_heap_objects{job=\"metadata-service\"}",
+              "legendFormat": "metadata-service",
+              "refId": "A"
+            },
+            {
+              "expr": "go_memstats_heap_objects{job=\"data-service\"}",
+              "legendFormat": "data-service",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "title": "Memory Allocation Rate",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 10, "lineWidth": 2 },
+              "unit": "Bps"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "rate(go_memstats_alloc_bytes_total{job=\"metadata-service\"}[5m])",
+              "legendFormat": "metadata-service",
+              "refId": "A"
+            },
+            {
+              "expr": "rate(go_memstats_alloc_bytes_total{job=\"data-service\"}[5m])",
+              "legendFormat": "data-service",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "title": "Stack Memory",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 10, "lineWidth": 2 },
+              "unit": "bytes"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "go_memstats_stack_inuse_bytes{job=\"metadata-service\"}",
+              "legendFormat": "metadata-service",
+              "refId": "A"
+            },
+            {
+              "expr": "go_memstats_stack_inuse_bytes{job=\"data-service\"}",
+              "legendFormat": "data-service",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "title": "OS Threads",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 10, "lineWidth": 2 },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "go_threads{job=\"metadata-service\"}",
+              "legendFormat": "metadata-service",
+              "refId": "A"
+            },
+            {
+              "expr": "go_threads{job=\"data-service\"}",
+              "legendFormat": "data-service",
+              "refId": "B"
+            }
+          ]
+        }
+      ],
+      "refresh": "10s",
+      "schemaVersion": 39,
+      "tags": ["video-streaming", "go-runtime"],
+      "templating": { "list": [] },
+      "time": { "from": "now-30m", "to": "now" },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Go Runtime",
+      "uid": "go-runtime",
+      "version": 1
+    }
+  http-overview.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [],
+      "panels": [
+        {
+          "title": "Request Rate (req/s)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 10, "lineWidth": 2 },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_request_duration_seconds_count{job=\"metadata-service\"}[1m])) by (http_route)",
+              "legendFormat": "metadata: {{http_route}}",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(rate(http_server_request_duration_seconds_count{job=\"data-service\"}[1m])) by (http_route)",
+              "legendFormat": "data: {{http_route}}",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "title": "Request Duration p50 / p95 / p99",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 5, "lineWidth": 2 },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(http_server_request_duration_seconds_bucket[5m])) by (le, job))",
+              "legendFormat": "{{job}} p50",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket[5m])) by (le, job))",
+              "legendFormat": "{{job}} p95",
+              "refId": "B"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(http_server_request_duration_seconds_bucket[5m])) by (le, job))",
+              "legendFormat": "{{job}} p99",
+              "refId": "C"
+            }
+          ]
+        },
+        {
+          "title": "HTTP Status Codes",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 20, "lineWidth": 2, "stacking": { "mode": "normal" } },
+              "unit": "reqps"
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byRegexp", "options": ".*5.." },
+                "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }]
+              },
+              {
+                "matcher": { "id": "byRegexp", "options": ".*4.." },
+                "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }]
+              },
+              {
+                "matcher": { "id": "byRegexp", "options": ".*2.." },
+                "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
+              }
+            ]
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_request_duration_seconds_count[1m])) by (http_response_status_code, job)",
+              "legendFormat": "{{job}} {{http_response_status_code}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "Error Rate %",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 1 },
+                  { "color": "red", "value": 5 }
+                ]
+              },
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "100 * sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~\"5..\"}[5m])) / sum(rate(http_server_request_duration_seconds_count[5m]))",
+              "legendFormat": "Error Rate",
+              "refId": "A"
+            }
+          ],
+          "options": { "graphMode": "area", "textMode": "auto" }
+        },
+        {
+          "title": "Avg Request Duration",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 0.5 },
+                  { "color": "red", "value": 1 }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_request_duration_seconds_sum[5m])) / sum(rate(http_server_request_duration_seconds_count[5m]))",
+              "legendFormat": "Avg Duration",
+              "refId": "A"
+            }
+          ],
+          "options": { "graphMode": "area", "textMode": "auto" }
+        },
+        {
+          "title": "Total Requests (metadata-service)",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 12 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": { "steps": [{ "color": "blue", "value": null }] },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "sum(http_server_request_duration_seconds_count{job=\"metadata-service\"})",
+              "legendFormat": "Total",
+              "refId": "A"
+            }
+          ],
+          "options": { "graphMode": "none", "textMode": "auto" }
+        },
+        {
+          "title": "Total Requests (data-service)",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 12 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": { "steps": [{ "color": "purple", "value": null }] },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "sum(http_server_request_duration_seconds_count{job=\"data-service\"})",
+              "legendFormat": "Total",
+              "refId": "A"
+            }
+          ],
+          "options": { "graphMode": "none", "textMode": "auto" }
+        },
+        {
+          "title": "Request Body Size",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 10, "lineWidth": 2 },
+              "unit": "bytes"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_server_request_body_size_bytes_bucket[5m])) by (le, job))",
+              "legendFormat": "{{job}} p95",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "Response Body Size",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 10, "lineWidth": 2 },
+              "unit": "bytes"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_server_response_body_size_bytes_bucket[5m])) by (le, job))",
+              "legendFormat": "{{job}} p95",
+              "refId": "A"
+            }
+          ]
+        }
+      ],
+      "refresh": "10s",
+      "schemaVersion": 39,
+      "tags": ["video-streaming", "http"],
+      "templating": { "list": [] },
+      "time": { "from": "now-30m", "to": "now" },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "HTTP Overview",
+      "uid": "http-overview",
+      "version": 1
+    }
+  infrastructure.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [],
+      "panels": [
+        {
+          "title": "CPU Usage",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 15, "lineWidth": 2 },
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "rate(process_cpu_seconds_total{job=\"metadata-service\"}[1m])",
+              "legendFormat": "metadata-service",
+              "refId": "A"
+            },
+            {
+              "expr": "rate(process_cpu_seconds_total{job=\"data-service\"}[1m])",
+              "legendFormat": "data-service",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "title": "Resident Memory (RSS)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 15, "lineWidth": 2 },
+              "unit": "bytes"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "process_resident_memory_bytes{job=\"metadata-service\"}",
+              "legendFormat": "metadata-service",
+              "refId": "A"
+            },
+            {
+              "expr": "process_resident_memory_bytes{job=\"data-service\"}",
+              "legendFormat": "data-service",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "title": "Virtual Memory",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 10, "lineWidth": 2 },
+              "unit": "bytes"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "process_virtual_memory_bytes{job=\"metadata-service\"}",
+              "legendFormat": "metadata-service",
+              "refId": "A"
+            },
+            {
+              "expr": "process_virtual_memory_bytes{job=\"data-service\"}",
+              "legendFormat": "data-service",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "title": "Open File Descriptors",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 10, "lineWidth": 2 },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "process_open_fds{job=\"metadata-service\"}",
+              "legendFormat": "metadata-service open",
+              "refId": "A"
+            },
+            {
+              "expr": "process_max_fds{job=\"metadata-service\"}",
+              "legendFormat": "metadata-service max",
+              "refId": "B"
+            },
+            {
+              "expr": "process_open_fds{job=\"data-service\"}",
+              "legendFormat": "data-service open",
+              "refId": "C"
+            },
+            {
+              "expr": "process_max_fds{job=\"data-service\"}",
+              "legendFormat": "data-service max",
+              "refId": "D"
+            }
+          ]
+        },
+        {
+          "title": "Network I/O",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "fillOpacity": 10, "lineWidth": 2 },
+              "unit": "Bps"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "rate(process_network_receive_bytes_total{job=\"metadata-service\"}[1m])",
+              "legendFormat": "metadata-service rx",
+              "refId": "A"
+            },
+            {
+              "expr": "rate(process_network_transmit_bytes_total{job=\"metadata-service\"}[1m])",
+              "legendFormat": "metadata-service tx",
+              "refId": "B"
+            },
+            {
+              "expr": "rate(process_network_receive_bytes_total{job=\"data-service\"}[1m])",
+              "legendFormat": "data-service rx",
+              "refId": "C"
+            },
+            {
+              "expr": "rate(process_network_transmit_bytes_total{job=\"data-service\"}[1m])",
+              "legendFormat": "data-service tx",
+              "refId": "D"
+            }
+          ]
+        }
+      ],
+      "refresh": "10s",
+      "schemaVersion": 39,
+      "tags": ["video-streaming", "infrastructure"],
+      "templating": { "list": [] },
+      "time": { "from": "now-30m", "to": "now" },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Infrastructure",
+      "uid": "infrastructure",
+      "version": 1
+    }
+kind: ConfigMap
+metadata:
+  namespace: observability
+  name: grafana-dashboards
+  namespace: observability
