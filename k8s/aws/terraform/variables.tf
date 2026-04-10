@@ -91,3 +91,9 @@ variable "s3_video_retention_days" {
   type        = number
   default     = 90
 }
+
+variable "container_image_tag" {
+  description = "Docker image tag for service deployments"
+  type        = string
+  default     = "latest"
+}

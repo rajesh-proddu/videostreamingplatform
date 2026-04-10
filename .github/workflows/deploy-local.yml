@@ -14,16 +14,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+
       - name: Set up Kind
-        uses: helm/kind-action@v1.6.0
+        uses: helm/kind-action@v1.12.0
         with:
           config: |
             kind: Cluster
             apiVersion: kind.x-k8s.io/v1alpha4
             nodes:
             - role: control-plane
-            - role: worker
-            - role: worker
+              extraPortMappings:
+              - containerPort: 30080
+                hostPort: 8080
+              - containerPort: 30081
+                hostPort: 8081
+              - containerPort: 30090
+                hostPort: 9090
+              - containerPort: 30686
+                hostPort: 16686
+              - containerPort: 30300
+                hostPort: 3000
 
       - name: Load Docker images into Kind
         run: |
@@ -32,26 +46,43 @@ jobs:
           kind load docker-image ghcr.io/${{ github.repository }}/metadata-service:${{ github.event.inputs.image_tag }}
           kind load docker-image ghcr.io/${{ github.repository }}/data-service:${{ github.event.inputs.image_tag }}
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-
-      - name: Deploy to Kind
+      - name: Deploy infrastructure and application
         run: |
-          kubectl apply -f k8s/local/namespace.yaml
+          kubectl create namespace videostreamingplatform --dry-run=client -o yaml | kubectl apply -f -
+          kubectl apply -f k8s/local/secrets.yaml
+          kubectl apply -f k8s/local/mysql-init.yaml
+          kubectl apply -f k8s/local/mysql.yaml
+          kubectl apply -f k8s/local/minio.yaml
           kubectl apply -f k8s/local/configmap.yaml
-          kubectl set image deployment/metadata-service metadata-service=ghcr.io/${{ github.repository }}/metadata-service:${{ github.event.inputs.image_tag }} -n videostreamingplatform --record --dry-run=client
           kubectl apply -f k8s/local/services.yaml
+          kubectl apply -f k8s/local/observability.yaml
           kubectl apply -f k8s/local/metadata-service-deploy.yaml
           kubectl apply -f k8s/local/data-service-deploy.yaml
 
-      - name: Verify deployments
+      - name: Wait for infrastructure
+        run: |
+          echo "Waiting for MySQL..."
+          kubectl rollout status deployment/mysql -n videostreamingplatform --timeout=5m
+          echo "Waiting for MinIO..."
+          kubectl rollout status deployment/minio -n videostreamingplatform --timeout=3m
+
+      - name: Wait for application services
         run: |
           kubectl rollout status deployment/metadata-service -n videostreamingplatform --timeout=5m
           kubectl rollout status deployment/data-service -n videostreamingplatform --timeout=5m
           kubectl get pods -n videostreamingplatform
 
-      - name: Test health endpoints
+      - name: Run smoke tests
         run: |
-          kubectl port-forward -n videostreamingplatform svc/metadata-service 8080:8080 &
-          sleep 3
-          curl -v http://localhost:8080/health || true
+          sleep 5
+          echo "Testing metadata service..."
+          curl --fail --retry 5 --retry-delay 3 http://localhost:8080/health
+          echo ""
+          echo "Testing data service..."
+          curl --fail --retry 5 --retry-delay 3 http://localhost:8081/health
+
+      - name: Run e2e tests
+        run: |
+          export METADATA_SERVICE_URL="http://localhost:8080"
+          export DATA_SERVICE_URL="http://localhost:8081"
+          go test -v -timeout 5m ./tests/e2e/...

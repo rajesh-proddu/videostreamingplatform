@@ -44,10 +44,19 @@ jobs:
         run: |
           kubectl create namespace videostreamingplatform --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Save current image tags for rollback
+        id: rollback-info
+        run: |
+          CURRENT_META=$(kubectl get deployment/metadata-service -n videostreamingplatform -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || echo "none")
+          CURRENT_DATA=$(kubectl get deployment/data-service -n videostreamingplatform -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || echo "none")
+          echo "metadata_image=${CURRENT_META}" >> "$GITHUB_OUTPUT"
+          echo "data_image=${CURRENT_DATA}" >> "$GITHUB_OUTPUT"
+          echo "Current metadata image: ${CURRENT_META}"
+          echo "Current data image: ${CURRENT_DATA}"
+
       - name: Deploy configmaps and secrets
         run: |
           kubectl apply -f k8s/aws/manifests/configmap.yaml
-          # Secrets should be managed separately via AWS Secrets Manager or sealed-secrets
 
       - name: Deploy services
         run: |
@@ -58,14 +67,39 @@ jobs:
       - name: Update image tags
         run: |
           kubectl set image deployment/metadata-service metadata-service=ghcr.io/${{ github.repository }}/metadata-service:${{ github.event.inputs.image_tag }} \
-            -n videostreamingplatform --record
+            -n videostreamingplatform
           kubectl set image deployment/data-service data-service=ghcr.io/${{ github.repository }}/data-service:${{ github.event.inputs.image_tag }} \
-            -n videostreamingplatform --record
+            -n videostreamingplatform
 
       - name: Wait for rollout
+        id: rollout
         run: |
           kubectl rollout status deployment/metadata-service -n videostreamingplatform --timeout=10m
           kubectl rollout status deployment/data-service -n videostreamingplatform --timeout=10m
+
+      - name: Rollback on failure
+        if: failure() && steps.rollout.outcome == 'failure'
+        run: |
+          echo "⚠️ Deployment failed — rolling back to previous images"
+          PREV_META="${{ steps.rollback-info.outputs.metadata_image }}"
+          PREV_DATA="${{ steps.rollback-info.outputs.data_image }}"
+
+          if [ "$PREV_META" != "none" ]; then
+            kubectl set image deployment/metadata-service metadata-service="${PREV_META}" -n videostreamingplatform
+            kubectl rollout status deployment/metadata-service -n videostreamingplatform --timeout=5m || true
+          else
+            kubectl rollout undo deployment/metadata-service -n videostreamingplatform || true
+          fi
+
+          if [ "$PREV_DATA" != "none" ]; then
+            kubectl set image deployment/data-service data-service="${PREV_DATA}" -n videostreamingplatform
+            kubectl rollout status deployment/data-service -n videostreamingplatform --timeout=5m || true
+          else
+            kubectl rollout undo deployment/data-service -n videostreamingplatform || true
+          fi
+
+          echo "✅ Rollback complete"
+          kubectl get pods -n videostreamingplatform
 
       - name: Verify deployment
         run: |
@@ -74,7 +108,31 @@ jobs:
           kubectl logs -l app=metadata-service -n videostreamingplatform --tail=20
 
       - name: Run smoke tests
+        id: smoke
         run: |
           METADATA_LB=$(kubectl get svc metadata-service -n videostreamingplatform -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-          echo "Testing metadata service at: $METADATA_LB"
-          curl -v http://$METADATA_LB:8080/health || true
+          DATA_LB=$(kubectl get svc data-service -n videostreamingplatform -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "Testing metadata service at: ${METADATA_LB}"
+          curl --fail --retry 3 --retry-delay 5 http://${METADATA_LB}:8080/health
+          echo ""
+          echo "Testing data service at: ${DATA_LB}"
+          curl --fail --retry 3 --retry-delay 5 http://${DATA_LB}:8081/health
+
+      - name: Run e2e tests
+        if: success()
+        run: |
+          METADATA_LB=$(kubectl get svc metadata-service -n videostreamingplatform -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          DATA_LB=$(kubectl get svc data-service -n videostreamingplatform -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          export METADATA_SERVICE_URL="http://${METADATA_LB}:8080"
+          export DATA_SERVICE_URL="http://${DATA_LB}:8081"
+          go test -v -timeout 5m ./tests/e2e/...
+
+      - name: Rollback on smoke/e2e failure
+        if: failure() && (steps.smoke.outcome == 'failure')
+        run: |
+          echo "⚠️ Smoke/e2e tests failed — rolling back"
+          kubectl rollout undo deployment/metadata-service -n videostreamingplatform || true
+          kubectl rollout undo deployment/data-service -n videostreamingplatform || true
+          kubectl rollout status deployment/metadata-service -n videostreamingplatform --timeout=5m || true
+          kubectl rollout status deployment/data-service -n videostreamingplatform --timeout=5m || true
+          echo "✅ Rollback complete"

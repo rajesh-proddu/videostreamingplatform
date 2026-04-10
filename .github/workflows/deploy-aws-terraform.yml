@@ -22,7 +22,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  TERRAFORM_VERSION: 1.5.0
+  TERRAFORM_VERSION: 1.12.1
 
 jobs:
   deploy:
@@ -43,7 +43,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
       
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
+        uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
       
@@ -64,7 +64,6 @@ jobs:
             -var-file="terraform.${{ github.event.inputs.environment }}.tfvars" \
             -var="container_image_tag=${{ github.event.inputs.image_tag }}" \
             -var="database_password=${{ secrets.DATABASE_PASSWORD }}" \
-            -var="database_host=${{ secrets.DATABASE_HOST }}" \
             -out=tfplan
       
       - name: Terraform Apply
@@ -81,7 +80,6 @@ jobs:
             -var-file="terraform.${{ github.event.inputs.environment }}.tfvars" \
             -var="container_image_tag=${{ github.event.inputs.image_tag }}" \
             -var="database_password=${{ secrets.DATABASE_PASSWORD }}" \
-            -var="database_host=${{ secrets.DATABASE_HOST }}" \
             -auto-approve
       
       - name: Get deployment info
@@ -98,16 +96,28 @@ jobs:
       
       - name: Wait for services to be ready
         if: github.event.inputs.destroy == 'false'
-        continue-on-error: true
+        id: rollout
         run: |
           CLUSTER_NAME="videostreamingplatform-${{ github.event.inputs.environment }}"
           aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name $CLUSTER_NAME
           
           echo "Waiting for metadata-service to be ready..."
-          kubectl rollout status deployment/metadata-service -n videostreamingplatform --timeout=10m || echo "⚠️ Metadata service timeout"
+          kubectl rollout status deployment/metadata-service -n videostreamingplatform --timeout=10m
           
           echo "Waiting for data-service to be ready..."
-          kubectl rollout status deployment/data-service -n videostreamingplatform --timeout=10m || echo "⚠️ Data service timeout"
+          kubectl rollout status deployment/data-service -n videostreamingplatform --timeout=10m
+
+      - name: Rollback on deployment failure
+        if: failure() && steps.rollout.outcome == 'failure'
+        run: |
+          echo "⚠️ Deployment failed — rolling back"
+          CLUSTER_NAME="videostreamingplatform-${{ github.event.inputs.environment }}"
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name $CLUSTER_NAME
+          kubectl rollout undo deployment/metadata-service -n videostreamingplatform || true
+          kubectl rollout undo deployment/data-service -n videostreamingplatform || true
+          kubectl rollout status deployment/metadata-service -n videostreamingplatform --timeout=5m || true
+          kubectl rollout status deployment/data-service -n videostreamingplatform --timeout=5m || true
+          echo "✅ Rollback complete"
       
       - name: Run smoke tests
         if: github.event.inputs.destroy == 'false'
@@ -130,11 +140,22 @@ jobs:
           echo "=== Testing Metadata Service ===" 
           METADATA_LB=$(kubectl get svc metadata-service -n videostreamingplatform -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
           echo "Metadata service endpoint: $METADATA_LB"
-          curl -v http://$METADATA_LB:8080/health || true
+          curl --fail --retry 3 --retry-delay 5 http://$METADATA_LB:8080/health
+
+      - name: Run e2e tests
+        if: github.event.inputs.destroy == 'false'
+        run: |
+          CLUSTER_NAME="videostreamingplatform-${{ github.event.inputs.environment }}"
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name $CLUSTER_NAME
+          METADATA_LB=$(kubectl get svc metadata-service -n videostreamingplatform -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          DATA_LB=$(kubectl get svc data-service -n videostreamingplatform -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          export METADATA_SERVICE_URL="http://${METADATA_LB}:8080"
+          export DATA_SERVICE_URL="http://${DATA_LB}:8081"
+          go test -v -timeout 5m ./tests/e2e/...
       
       - name: Slack Notification - Success
         if: success() && github.event.inputs.destroy == 'false' && secrets.SLACK_WEBHOOK != ''
-        uses: slackapi/slack-github-action@v1
+        uses: slackapi/slack-github-action@v2
         with:
           webhook-url: ${{ secrets.SLACK_WEBHOOK }}
           payload: |
@@ -153,7 +174,7 @@ jobs:
       
       - name: Slack Notification - Failure
         if: failure() && secrets.SLACK_WEBHOOK != ''
-        uses: slackapi/slack-github-action@v1
+        uses: slackapi/slack-github-action@v2
         with:
           webhook-url: ${{ secrets.SLACK_WEBHOOK }}
           payload: |

@@ -108,7 +108,7 @@ func (c *Client) HealthMetadata() error {
 	if err != nil {
 		return fmt.Errorf("metadata health: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("metadata health: status %d", resp.StatusCode)
 	}
@@ -120,7 +120,7 @@ func (c *Client) HealthData() error {
 	if err != nil {
 		return fmt.Errorf("data health: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("data health: status %d", resp.StatusCode)
 	}
@@ -135,7 +135,7 @@ func (c *Client) CreateVideo(req CreateVideoRequest) (*Video, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create video: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("create video: status %d: %s", resp.StatusCode, string(b))
@@ -152,7 +152,7 @@ func (c *Client) GetVideo(id string) (*Video, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get video: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("get video: status %d: %s", resp.StatusCode, string(b))
@@ -172,7 +172,7 @@ func (c *Client) UpdateVideo(id string, req UpdateVideoRequest) (*Video, error) 
 	if err != nil {
 		return nil, fmt.Errorf("update video: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("update video: status %d: %s", resp.StatusCode, string(b))
@@ -190,7 +190,7 @@ func (c *Client) DeleteVideo(id string) error {
 	if err != nil {
 		return fmt.Errorf("delete video: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("delete video: status %d: %s", resp.StatusCode, string(b))
@@ -204,7 +204,7 @@ func (c *Client) ListVideos(limit, offset int) (*ListVideosResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list videos: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("list videos: status %d: %s", resp.StatusCode, string(b))
@@ -224,7 +224,7 @@ func (c *Client) InitiateUpload(req UploadInitiateRequest) (*UploadInitiateRespo
 	if err != nil {
 		return nil, fmt.Errorf("initiate upload: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("initiate upload: status %d: %s", resp.StatusCode, string(b))
@@ -244,7 +244,7 @@ func (c *Client) UploadChunk(uploadID string, chunkIndex int, data []byte) (*Upl
 	if err != nil {
 		return nil, fmt.Errorf("upload chunk %d: %w", chunkIndex, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("upload chunk %d: status %d: %s", chunkIndex, resp.StatusCode, string(b))
@@ -261,7 +261,7 @@ func (c *Client) GetUploadProgress(uploadID string) (*UploadProgressResponse, er
 	if err != nil {
 		return nil, fmt.Errorf("get progress: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("get progress: status %d: %s", resp.StatusCode, string(b))
@@ -278,7 +278,7 @@ func (c *Client) CompleteUpload(uploadID string) (*CompleteUploadResponse, error
 	if err != nil {
 		return nil, fmt.Errorf("complete upload: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("complete upload: status %d: %s", resp.StatusCode, string(b))
@@ -297,7 +297,7 @@ func (c *Client) DownloadVideo(videoID string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("download: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("download: status %d: %s", resp.StatusCode, string(b))
