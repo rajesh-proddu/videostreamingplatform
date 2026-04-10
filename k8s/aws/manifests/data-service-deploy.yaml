@@ -53,6 +53,9 @@ spec:
           envFrom:
             - configMapRef:
                 name: app-config
+          env:
+            - name: HTTP_PORT
+              value: "8081"
           resources:
             requests:
               cpu: 500m

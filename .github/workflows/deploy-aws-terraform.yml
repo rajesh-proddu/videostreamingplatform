@@ -90,20 +90,20 @@ jobs:
           echo "=== Deployment Outputs ===" 
           EKS_NAME=$(terraform output -raw eks_cluster_name 2>/dev/null || echo "")
           EKS_ENDPOINT=$(terraform output -raw eks_cluster_endpoint 2>/dev/null || echo "")
-          RDS_ENDPOINT=$(terraform output -raw rds_endpoint 2>/dev/null || echo "")
+          RDS_HOST=$(terraform output -raw rds_address 2>/dev/null || echo "")
           RDS_DB_NAME=$(terraform output -raw rds_database_name 2>/dev/null || echo "videoplatform")
           S3_BUCKET=$(terraform output -raw s3_videos_bucket 2>/dev/null || echo "")
           IRSA_META_ARN=$(terraform output -raw metadata_service_irsa_role_arn 2>/dev/null || echo "")
           IRSA_DATA_ARN=$(terraform output -raw data_service_irsa_role_arn 2>/dev/null || echo "")
           echo "eks_name=${EKS_NAME}" >> "$GITHUB_OUTPUT"
-          echo "rds_endpoint=${RDS_ENDPOINT}" >> "$GITHUB_OUTPUT"
+          echo "rds_host=${RDS_HOST}" >> "$GITHUB_OUTPUT"
           echo "rds_db_name=${RDS_DB_NAME}" >> "$GITHUB_OUTPUT"
           echo "s3_bucket=${S3_BUCKET}" >> "$GITHUB_OUTPUT"
           echo "irsa_meta_arn=${IRSA_META_ARN}" >> "$GITHUB_OUTPUT"
           echo "irsa_data_arn=${IRSA_DATA_ARN}" >> "$GITHUB_OUTPUT"
           echo "Cluster: ${EKS_NAME}"
           echo "Endpoint: ${EKS_ENDPOINT}"
-          echo "RDS: ${RDS_ENDPOINT}"
+          echo "RDS Host: ${RDS_HOST}"
           echo "S3: ${S3_BUCKET}"
 
       - name: Configure K8s resources
@@ -118,7 +118,7 @@ jobs:
           # Create rds-credentials secret from Terraform outputs
           kubectl create secret generic rds-credentials \
             --namespace videostreamingplatform \
-            --from-literal=host="${{ steps.tf-outputs.outputs.rds_endpoint }}" \
+            --from-literal=host="${{ steps.tf-outputs.outputs.rds_host }}" \
             --from-literal=username="admin" \
             --from-literal=password="${{ secrets.DATABASE_PASSWORD }}" \
             --from-literal=database="${{ steps.tf-outputs.outputs.rds_db_name }}" \
@@ -152,14 +152,24 @@ jobs:
       - name: Rollback on deployment failure
         if: failure() && steps.rollout.outcome == 'failure'
         run: |
-          echo "⚠️ Deployment failed — rolling back"
+          echo "⚠️ Deployment failed — collecting diagnostics"
           CLUSTER_NAME="videostreamingplatform-${{ github.event.inputs.environment }}"
           aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name $CLUSTER_NAME
+          echo "=== Pod Status ==="
+          kubectl get pods -n videostreamingplatform -o wide || true
+          echo "=== Pod Descriptions ==="
+          kubectl describe pods -n videostreamingplatform | tail -80 || true
+          echo "=== Events ==="
+          kubectl get events -n videostreamingplatform --sort-by='.lastTimestamp' | tail -30 || true
+          echo "=== Pod Logs ==="
+          for pod in $(kubectl get pods -n videostreamingplatform -o name 2>/dev/null); do
+            echo "--- $pod ---"
+            kubectl logs $pod -n videostreamingplatform --tail=20 || true
+          done
+          echo "⚠️ Rolling back..."
           kubectl rollout undo deployment/metadata-service -n videostreamingplatform || true
           kubectl rollout undo deployment/data-service -n videostreamingplatform || true
-          kubectl rollout status deployment/metadata-service -n videostreamingplatform --timeout=5m || true
-          kubectl rollout status deployment/data-service -n videostreamingplatform --timeout=5m || true
-          echo "✅ Rollback complete"
+          echo "✅ Rollback initiated"
       
       - name: Run smoke tests
         if: github.event.inputs.destroy == 'false'
