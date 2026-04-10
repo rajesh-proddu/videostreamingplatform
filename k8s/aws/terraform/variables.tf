@@ -34,7 +34,7 @@ variable "private_subnet_cidrs" {
 variable "kubernetes_version" {
   description = "Kubernetes version"
   type        = string
-  default     = "1.32"
+  default     = "1.29"
 }
 
 variable "node_group_min_size" {
