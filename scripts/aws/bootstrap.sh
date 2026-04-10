@@ -228,6 +228,8 @@ EOF
         "eks:ListClusters",
         "eks:UpdateClusterConfig",
         "eks:UpdateClusterVersion",
+        "eks:DescribeUpdate",
+        "eks:ListUpdates",
         "eks:CreateCluster",
         "eks:DeleteCluster",
         "eks:CreateNodegroup",
@@ -307,7 +309,8 @@ EOF
         "kms:GetKeyPolicy", "kms:GetKeyRotationStatus",
         "kms:ListResourceTags", "kms:ScheduleKeyDeletion",
         "kms:TagResource", "kms:CreateAlias", "kms:DeleteAlias",
-        "kms:ListAliases"
+        "kms:ListAliases", "kms:CreateGrant", "kms:Encrypt",
+        "kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKey*"
       ],
       "Resource": "*"
     },
