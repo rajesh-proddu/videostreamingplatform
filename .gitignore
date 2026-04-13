@@ -36,3 +36,6 @@ k8s/local/terraform/.terraform/
 k8s/local/terraform/terraform.tfstate*
 k8s/local/terraform/.terraform.lock.hcl
 k8s/local/terraform/videostreamingplatform-config
+k8s/aws/terraform/.terraform/
+k8s/aws/terraform/terraform.tfstate*
+k8s/aws/terraform/.terraform.lock.hcl

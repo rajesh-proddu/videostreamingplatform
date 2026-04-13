@@ -43,6 +43,17 @@ type Config struct {
 
 	// Feature flags
 	DebugMode bool
+
+	// Kafka configuration
+	KafkaBrokers    string
+	KafkaVideoTopic string
+	KafkaWatchTopic string
+
+	// Elasticsearch configuration
+	ElasticsearchURL string
+
+	// Upload store selector (memory or mysql)
+	UploadStore string
 }
 
 // New creates a new Config instance from environment variables
@@ -70,6 +81,11 @@ func New(serviceName string) *Config {
 		OTelMetricsEnabled: getEnvAsBool("OTEL_METRICS_ENABLED", false),
 		OTelJaegerURL:      getEnvOrDefault("OTEL_JAEGER_URL", "http://localhost:14268/api/traces"),
 		DebugMode:          getEnvAsBool("DEBUG_MODE", false),
+		KafkaBrokers:       getEnvOrDefault("KAFKA_BROKERS", "localhost:9092"),
+		KafkaVideoTopic:    getEnvOrDefault("KAFKA_VIDEO_TOPIC", "video-events"),
+		KafkaWatchTopic:    getEnvOrDefault("KAFKA_WATCH_TOPIC", "watch-events"),
+		ElasticsearchURL:   getEnvOrDefault("ELASTICSEARCH_URL", "http://localhost:9200"),
+		UploadStore:        getEnvOrDefault("UPLOAD_STORE", "mysql"),
 	}
 }
 

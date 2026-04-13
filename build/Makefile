@@ -1,4 +1,4 @@
-.PHONY: help build test lint docker-build docker-push deploy-local deploy-aws terraform-plan terraform-apply clean
+.PHONY: help build test lint docker-build docker-push deploy-local deploy-aws terraform-plan terraform-apply clean swagger
 
 REGISTRY ?= videostreamingplatform
 VERSION ?= latest
@@ -56,6 +56,12 @@ lint:
 fmt:
 	@echo "Formatting code..."
 	cd $(REPO_ROOT) && go fmt ./...
+
+swagger:
+	@echo "Generating Swagger docs..."
+	cd $(REPO_ROOT)/metadataservice && swag init -g main.go -o docs
+	cd $(REPO_ROOT)/dataservice && swag init -g main.go -o docs
+	@echo "✓ Swagger docs generated"
 
 run: run-dataservice run-metadataservice
 

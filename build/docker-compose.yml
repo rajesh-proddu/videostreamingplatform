@@ -98,6 +98,49 @@ services:
       retries: 10
       interval: 5s
 
+  kafka:
+    image: apache/kafka:3.9.0
+    container_name: videostreamingplatform-kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    ports:
+      - "9092:9092"
+    networks:
+      - videostreamingplatform
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      timeout: 10s
+      retries: 15
+      interval: 5s
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    container_name: videostreamingplatform-elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms256m -Xmx256m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks:
+      - videostreamingplatform
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      timeout: 5s
+      retries: 15
+      interval: 5s
+
   metadataservice:
     build:
       context: ..
@@ -115,12 +158,16 @@ services:
       OTEL_ENABLED: "true"
       OTEL_JAEGER_URL: http://jaeger:14268/api/traces
       OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_VIDEO_TOPIC: video-events
     ports:
       - "8080:8080"
     depends_on:
       mysql:
         condition: service_healthy
       jaeger:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     networks:
       - videostreamingplatform
@@ -148,11 +195,23 @@ services:
       OTEL_ENABLED: "true"
       OTEL_JAEGER_URL: http://jaeger:14268/api/traces
       OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_USER: videouser
+      MYSQL_PASSWORD: videopass
+      MYSQL_DATABASE: videoplatform
+      UPLOAD_STORE: mysql
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_WATCH_TOPIC: watch-events
     ports:
       - "8081:8081"
       - "50051:50051"
     depends_on:
+      mysql:
+        condition: service_healthy
       jaeger:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     networks:
       - videostreamingplatform
@@ -166,6 +225,7 @@ volumes:
   mysql_data:
   prometheus_data:
   grafana_data:
+  es_data:
 
 networks:
   videostreamingplatform:

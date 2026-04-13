@@ -18,3 +18,14 @@ data:
 
   # Observability
   OTEL_EXPORTER_OTLP_ENDPOINT: jaeger.videostreamingplatform.svc.cluster.local:4318
+
+  # Kafka
+  KAFKA_BROKERS: kafka.videostreamingplatform.svc.cluster.local:9092
+  KAFKA_VIDEO_TOPIC: video-events
+  KAFKA_WATCH_TOPIC: watch-events
+
+  # Elasticsearch
+  ELASTICSEARCH_URL: http://elasticsearch.videostreamingplatform.svc.cluster.local:9200
+
+  # Dataservice
+  UPLOAD_STORE: mysql

@@ -241,6 +241,28 @@ Tests can be run in GitHub Actions:
 5. **Benchmark Tests**: Performance profiling of progress tracking
 6. **Integration Tests**: Multiple services communicating
 
+## Resiliency Testing
+
+Node down/up resiliency scenarios for both local Kind and AWS EKS are documented in:
+
+```bash
+tests/resiliency/README.md
+```
+
+Helper commands for drain / Kind stop-start / AWS terminate / recovery validation are available in:
+
+```bash
+scripts/aws/resiliency-node-cycle.sh
+```
+
+Recommended workflow:
+
+1. Start sustained metadata load with `go run ./tests/stress/metadataservice ...`
+2. Capture a baseline with `scripts/aws/resiliency-node-cycle.sh snapshot`
+3. Run either a graceful drain or hard terminate scenario
+4. Wait for pod recovery with `scripts/aws/resiliency-node-cycle.sh wait-pods --selector app=metadata-service --expected-ready 2`
+5. Verify availability, recovery time, and metadata correctness
+
 ## Running the Tests
 
 ### All Tests
@@ -312,6 +334,6 @@ func TestFeatureName(t *testing.T) {
 Ready to implement:
 1. Handler integration tests
 2. End-to-end upload/download tests
-3. Load testing with 1000+ concurrent operations
+3. Metadata-service stress testing with a dedicated runner under `tests/stress/metadataservice`
 4. Chaos engineering tests (network failures, timeouts)
-5. Performance benchmarking
+5. Performance benchmarking against configurable QPS targets (default plan: 10k QPS, 80% reads / 20% writes)

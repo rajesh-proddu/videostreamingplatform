@@ -7,10 +7,14 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
+	httpSwagger "github.com/swaggo/http-swagger/v2"
+
 	"github.com/yourusername/videostreamingplatform/dataservice/bl"
+	"github.com/yourusername/videostreamingplatform/dataservice/db"
 	"github.com/yourusername/videostreamingplatform/dataservice/dl"
 	"github.com/yourusername/videostreamingplatform/dataservice/handlers"
 	"github.com/yourusername/videostreamingplatform/dataservice/server"
@@ -19,6 +23,7 @@ import (
 	"github.com/yourusername/videostreamingplatform/dataservice/storage"
 
 	"github.com/yourusername/videostreamingplatform/utils/config"
+	"github.com/yourusername/videostreamingplatform/utils/kafka"
 	"github.com/yourusername/videostreamingplatform/utils/middleware"
 	"github.com/yourusername/videostreamingplatform/utils/observability"
 
@@ -55,14 +60,37 @@ func main() {
 		logger.Fatalf("Failed to initialize S3 client: %v", err)
 	}
 
-	// Initialize repository
-	uploadRepo := dl.NewInMemoryUploadRepository()
+	// Initialize repository (MySQL or in-memory based on config)
+	var uploadRepo dl.UploadRepository
+	if cfg.UploadStore == "memory" {
+		logger.Println("Using in-memory upload repository")
+		uploadRepo = dl.NewInMemoryUploadRepository()
+	} else {
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
+			cfg.MySQLUser, cfg.MySQLPassword, cfg.MySQLHost, cfg.MySQLPort, cfg.MySQLDatabase)
+		database, err := db.NewMySQL(dsn, cfg.MySQLMaxConn)
+		if err != nil {
+			logger.Fatalf("Failed to connect to MySQL: %v", err)
+		}
+		defer func() { _ = database.Close() }()
+		logger.Println("Connected to MySQL database")
+		uploadRepo = dl.NewMySQLUploadRepository(database.DB())
+	}
+
+	// Initialize Kafka producer for watch events (best-effort)
+	var watchProducer kafka.Producer
+	if cfg.KafkaBrokers != "" {
+		brokers := strings.Split(cfg.KafkaBrokers, ",")
+		watchProducer = kafka.NewProducer(brokers, cfg.KafkaWatchTopic)
+		defer func() { _ = watchProducer.Close() }()
+		logger.Printf("Kafka watch producer enabled → %s (topic: %s)", cfg.KafkaBrokers, cfg.KafkaWatchTopic)
+	}
 
 	// Initialize service
 	uploadService := bl.NewUploadService(uploadRepo, logger.Logger)
 
 	// Initialize handlers
-	uploadHandler := handlers.NewUploadHandler(uploadService, s3Client)
+	uploadHandler := handlers.NewUploadHandler(uploadService, s3Client, watchProducer, logger)
 
 	// Set up HTTP routes for streaming
 	mux := http.NewServeMux()
@@ -81,6 +109,7 @@ func main() {
 	mux.HandleFunc("GET /uploads/{uploadId}/progress", uploadHandler.GetUploadProgress)
 	mux.HandleFunc("POST /uploads/{uploadId}/complete", uploadHandler.CompleteUpload)
 	mux.HandleFunc("GET /videos/{id}/download", uploadHandler.Download)
+	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	// Apply middleware to HTTP server
 	httpHandler := middleware.ChainMiddleware(

@@ -7,17 +7,25 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/yourusername/videostreamingplatform/metadataservice/db"
 	"github.com/yourusername/videostreamingplatform/metadataservice/models"
 )
 
+// VideoStore defines the database operations required by VideoRepository.
+type VideoStore interface {
+	CreateVideo(ctx context.Context, video *models.Video) error
+	GetVideo(ctx context.Context, id string) (*models.Video, error)
+	UpdateVideo(ctx context.Context, video *models.Video) error
+	DeleteVideo(ctx context.Context, id string) error
+	ListVideos(ctx context.Context, limit, offset int) ([]*models.Video, error)
+}
+
 // VideoRepository handles video data operations
 type VideoRepository struct {
-	db *db.MySQL
+	db VideoStore
 }
 
 // NewVideoRepository creates a new video repository
-func NewVideoRepository(database *db.MySQL) *VideoRepository {
+func NewVideoRepository(database VideoStore) *VideoRepository {
 	return &VideoRepository{db: database}
 }
 

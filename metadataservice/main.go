@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 
 	"github.com/yourusername/videostreamingplatform/metadataservice/bl"
 	"github.com/yourusername/videostreamingplatform/metadataservice/db"
@@ -15,6 +18,7 @@ import (
 	"github.com/yourusername/videostreamingplatform/metadataservice/handlers"
 
 	"github.com/yourusername/videostreamingplatform/utils/config"
+	"github.com/yourusername/videostreamingplatform/utils/kafka"
 	"github.com/yourusername/videostreamingplatform/utils/middleware"
 	"github.com/yourusername/videostreamingplatform/utils/observability"
 )
@@ -62,7 +66,17 @@ func main() {
 
 	// Initialize service layers
 	repo := dl.NewVideoRepository(database)
-	videoService := bl.NewVideoService(repo)
+
+	var serviceOpts []bl.VideoServiceOption
+	if cfg.KafkaBrokers != "" {
+		brokers := strings.Split(cfg.KafkaBrokers, ",")
+		videoProducer := kafka.NewProducer(brokers, cfg.KafkaVideoTopic)
+		defer func() { _ = videoProducer.Close() }()
+		serviceOpts = append(serviceOpts, bl.WithKafkaProducer(videoProducer, logger.Logger))
+		logger.Printf("Kafka video producer enabled → %s (topic: %s)", cfg.KafkaBrokers, cfg.KafkaVideoTopic)
+	}
+
+	videoService := bl.NewVideoService(repo, serviceOpts...)
 
 	// Initialize HTTP handlers
 	handler := handlers.NewVideoHandler(videoService)
@@ -84,6 +98,7 @@ func main() {
 	mux.HandleFunc("PUT /videos/{id}", handler.UpdateVideo)
 	mux.HandleFunc("DELETE /videos/{id}", handler.DeleteVideo)
 	mux.HandleFunc("GET /videos", handler.ListVideos)
+	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	// Apply middleware
 	httpHandler := middleware.ChainMiddleware(

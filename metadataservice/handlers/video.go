@@ -21,6 +21,16 @@ func NewVideoHandler(service *bl.VideoService) *VideoHandler {
 }
 
 // CreateVideo creates a new video metadata entry
+// @Summary      Create a video
+// @Description  Creates a new video metadata record
+// @Tags         videos
+// @Accept       json
+// @Produce      json
+// @Param        body  body      models.CreateVideoRequest  true  "Video metadata"
+// @Success      201   {object}  models.Video
+// @Failure      400   {string}  string  "Invalid request body"
+// @Failure      500   {string}  string  "Internal server error"
+// @Router       /videos [post]
 func (h *VideoHandler) CreateVideo(w http.ResponseWriter, r *http.Request) {
 	var req models.CreateVideoRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -40,6 +50,14 @@ func (h *VideoHandler) CreateVideo(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetVideo retrieves a video by ID
+// @Summary      Get a video
+// @Description  Retrieves video metadata by ID
+// @Tags         videos
+// @Produce      json
+// @Param        id   path      string  true  "Video ID"
+// @Success      200  {object}  models.Video
+// @Failure      404  {string}  string  "Video not found"
+// @Router       /videos/{id} [get]
 func (h *VideoHandler) GetVideo(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
@@ -54,6 +72,17 @@ func (h *VideoHandler) GetVideo(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateVideo updates a video's metadata
+// @Summary      Update a video
+// @Description  Updates an existing video's metadata
+// @Tags         videos
+// @Accept       json
+// @Produce      json
+// @Param        id    path      string                     true  "Video ID"
+// @Param        body  body      models.UpdateVideoRequest  true  "Updated fields"
+// @Success      200   {object}  models.Video
+// @Failure      400   {string}  string  "Invalid request body"
+// @Failure      500   {string}  string  "Internal server error"
+// @Router       /videos/{id} [put]
 func (h *VideoHandler) UpdateVideo(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
@@ -74,6 +103,13 @@ func (h *VideoHandler) UpdateVideo(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeleteVideo deletes a video
+// @Summary      Delete a video
+// @Description  Deletes a video by ID
+// @Tags         videos
+// @Param        id   path  string  true  "Video ID"
+// @Success      204  "No Content"
+// @Failure      500  {string}  string  "Internal server error"
+// @Router       /videos/{id} [delete]
 func (h *VideoHandler) DeleteVideo(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
@@ -86,6 +122,15 @@ func (h *VideoHandler) DeleteVideo(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListVideos lists all videos
+// @Summary      List videos
+// @Description  Lists all videos with pagination
+// @Tags         videos
+// @Produce      json
+// @Param        limit   query     int  false  "Max results (default 20)"
+// @Param        offset  query     int  false  "Offset for pagination"
+// @Success      200     {object}  map[string]interface{}
+// @Failure      500     {string}  string  "Internal server error"
+// @Router       /videos [get]
 func (h *VideoHandler) ListVideos(w http.ResponseWriter, r *http.Request) {
 	var limit, offset int
 
