@@ -20,7 +20,7 @@ data:
   OTEL_EXPORTER_OTLP_ENDPOINT: jaeger.videostreamingplatform.svc.cluster.local:4318
 
   # Kafka
-  KAFKA_BROKERS: kafka.videostreamingplatform.svc.cluster.local:9092
+  KAFKA_BROKERS: kafka.infra.svc.cluster.local:9092
   KAFKA_VIDEO_TOPIC: video-events
   KAFKA_WATCH_TOPIC: watch-events
 
@@ -29,3 +29,6 @@ data:
 
   # Dataservice
   UPLOAD_STORE: mysql
+
+  # Recommendation service (empty = disabled)
+  RECOMMENDATION_SERVICE_URL: http://recommendations.recommendations.svc.cluster.local:8000

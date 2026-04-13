@@ -1,4 +1,6 @@
 // Package events defines versioned event schemas for Kafka publishing.
+// Deprecated: These JSON schemas will be replaced with generated code from
+// videostreamingplatform-schemas repo (Avro/Protobuf) once codegen is set up.
 package events
 
 import (

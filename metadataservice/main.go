@@ -21,6 +21,7 @@ import (
 	"github.com/yourusername/videostreamingplatform/utils/kafka"
 	"github.com/yourusername/videostreamingplatform/utils/middleware"
 	"github.com/yourusername/videostreamingplatform/utils/observability"
+	"github.com/yourusername/videostreamingplatform/utils/recommendations"
 )
 
 func main() {
@@ -80,6 +81,8 @@ func main() {
 
 	// Initialize HTTP handlers
 	handler := handlers.NewVideoHandler(videoService)
+	recoClient := recommendations.NewClient(cfg.RecommendationServiceURL)
+	recoHandler := handlers.NewRecommendationHandler(recoClient)
 
 	// Set up routes
 	mux := http.NewServeMux()
@@ -98,6 +101,7 @@ func main() {
 	mux.HandleFunc("PUT /videos/{id}", handler.UpdateVideo)
 	mux.HandleFunc("DELETE /videos/{id}", handler.DeleteVideo)
 	mux.HandleFunc("GET /videos", handler.ListVideos)
+	mux.HandleFunc("GET /recommendations", recoHandler.GetRecommendations)
 	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	// Apply middleware

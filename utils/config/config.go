@@ -54,6 +54,9 @@ type Config struct {
 
 	// Upload store selector (memory or mysql)
 	UploadStore string
+
+	// Recommendation service URL (empty = disabled)
+	RecommendationServiceURL string
 }
 
 // New creates a new Config instance from environment variables
@@ -85,7 +88,8 @@ func New(serviceName string) *Config {
 		KafkaVideoTopic:    getEnvOrDefault("KAFKA_VIDEO_TOPIC", "video-events"),
 		KafkaWatchTopic:    getEnvOrDefault("KAFKA_WATCH_TOPIC", "watch-events"),
 		ElasticsearchURL:   getEnvOrDefault("ELASTICSEARCH_URL", "http://localhost:9200"),
-		UploadStore:        getEnvOrDefault("UPLOAD_STORE", "mysql"),
+		UploadStore:              getEnvOrDefault("UPLOAD_STORE", "mysql"),
+		RecommendationServiceURL: getEnvOrDefault("RECOMMENDATION_SERVICE_URL", ""),
 	}
 }
 
