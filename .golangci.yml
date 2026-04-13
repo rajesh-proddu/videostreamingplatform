@@ -8,8 +8,10 @@ linters:
     - ineffassign
     - staticcheck
     - unused
-    - gosimple
     - gocritic
+
+formatters:
+  enable:
     - gofmt
     - goimports
 

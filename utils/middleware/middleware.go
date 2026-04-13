@@ -71,4 +71,3 @@ func ChainMiddleware(handler http.Handler, middlewares ...func(http.Handler) htt
 	}
 	return handler
 }
-

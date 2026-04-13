@@ -34,7 +34,7 @@ func (h *RecommendationHandler) GetRecommendations(w http.ResponseWriter, r *htt
 	if !h.client.Enabled() {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(w).Encode(map[string]string{"error": "recommendation service not configured"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "recommendation service not configured"})
 		return
 	}
 
@@ -42,7 +42,7 @@ func (h *RecommendationHandler) GetRecommendations(w http.ResponseWriter, r *htt
 	if userID == "" {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "user_id is required"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "user_id is required"})
 		return
 	}
 
@@ -53,10 +53,10 @@ func (h *RecommendationHandler) GetRecommendations(w http.ResponseWriter, r *htt
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(w).Encode(map[string]string{"error": "recommendation service unavailable"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "recommendation service unavailable"})
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }

@@ -18,7 +18,6 @@ import (
 
 type mockVideoStore struct {
 	videos map[string]*models.Video
-	nextID int
 }
 
 func newMockVideoStore() *mockVideoStore {
