@@ -21,7 +21,6 @@ type Config struct {
 	HTTPWriteTimeout time.Duration
 	HTTPIdleTimeout  time.Duration
 	GRPCPort         int
-	GracefulShutdown time.Duration
 
 	// Database configuration
 	MySQLHost     string
@@ -36,10 +35,8 @@ type Config struct {
 	S3Bucket string
 
 	// OpenTelemetry configuration
-	OTelEnabled        bool
-	OTelTracesEnabled  bool
-	OTelMetricsEnabled bool
-	OTelJaegerURL      string
+	OTelEnabled   bool
+	OTelJaegerURL string
 
 	// Feature flags
 	DebugMode bool
@@ -48,9 +45,6 @@ type Config struct {
 	KafkaBrokers    string
 	KafkaVideoTopic string
 	KafkaWatchTopic string
-
-	// Elasticsearch configuration
-	ElasticsearchURL string
 
 	// Upload store selector (memory or mysql)
 	UploadStore string
@@ -70,7 +64,6 @@ func New(serviceName string) *Config {
 		HTTPWriteTimeout:   getEnvAsDuration("HTTP_WRITE_TIMEOUT", 30*time.Second),
 		HTTPIdleTimeout:    getEnvAsDuration("HTTP_IDLE_TIMEOUT", 120*time.Second),
 		GRPCPort:           getEnvAsInt("GRPC_PORT", 50051),
-		GracefulShutdown:   getEnvAsDuration("GRACEFUL_SHUTDOWN_TIMEOUT", 30*time.Second),
 		MySQLHost:          getEnvOrDefault("MYSQL_HOST", "localhost"),
 		MySQLPort:          getEnvOrDefault("MYSQL_PORT", "3306"),
 		MySQLUser:          getEnvOrDefault("MYSQL_USER", "videouser"),
@@ -80,14 +73,11 @@ func New(serviceName string) *Config {
 		S3Region:           getEnvOrDefault("S3_REGION", "us-east-1"),
 		S3Bucket:           getEnvOrDefault("S3_BUCKET", "video-platform-storage"),
 		OTelEnabled:        getEnvAsBool("OTEL_ENABLED", false),
-		OTelTracesEnabled:  getEnvAsBool("OTEL_TRACES_ENABLED", false),
-		OTelMetricsEnabled: getEnvAsBool("OTEL_METRICS_ENABLED", false),
 		OTelJaegerURL:      getEnvOrDefault("OTEL_JAEGER_URL", "http://localhost:14268/api/traces"),
 		DebugMode:          getEnvAsBool("DEBUG_MODE", false),
 		KafkaBrokers:       getEnvOrDefault("KAFKA_BROKERS", "localhost:9092"),
 		KafkaVideoTopic:    getEnvOrDefault("KAFKA_VIDEO_TOPIC", "video-events"),
 		KafkaWatchTopic:    getEnvOrDefault("KAFKA_WATCH_TOPIC", "watch-events"),
-		ElasticsearchURL:   getEnvOrDefault("ELASTICSEARCH_URL", "http://localhost:9200"),
 		UploadStore:              getEnvOrDefault("UPLOAD_STORE", "mysql"),
 		RecommendationServiceURL: getEnvOrDefault("RECOMMENDATION_SERVICE_URL", ""),
 	}

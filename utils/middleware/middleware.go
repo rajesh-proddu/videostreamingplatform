@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/yourusername/videostreamingplatform/utils/errors"
 	"github.com/yourusername/videostreamingplatform/utils/observability"
 )
 
@@ -73,19 +72,3 @@ func ChainMiddleware(handler http.Handler, middlewares ...func(http.Handler) htt
 	return handler
 }
 
-// ErrorResponseWriter writes structured error responses
-func WriteError(w http.ResponseWriter, err error) {
-	w.Header().Set("Content-Type", "application/json")
-
-	if appErr, ok := err.(*errors.AppError); ok {
-		w.WriteHeader(appErr.HTTPStatus())
-		_, _ = fmt.Fprintf(w,
-			`{"type":"%s","message":"%s","status_code":%d}`,
-			appErr.Type, appErr.Message, appErr.StatusCode)
-		return
-	}
-
-	w.WriteHeader(http.StatusInternalServerError)
-	_, _ = fmt.Fprintf(w,
-		`{"type":"INTERNAL_ERROR","message":"Internal server error","status_code":500}`)
-}
