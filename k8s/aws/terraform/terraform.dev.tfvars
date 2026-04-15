@@ -11,3 +11,6 @@ node_group_desired_size  = 2
 node_instance_types      = ["t3.small"]
 rds_instance_class       = "db.t3.micro"
 s3_video_retention_days  = 30
+opensearch_instance_type  = "t3.small.search"
+opensearch_instance_count = 1
+opensearch_volume_size    = 10

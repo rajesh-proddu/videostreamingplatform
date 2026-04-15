@@ -11,3 +11,6 @@ node_group_desired_size  = 5
 node_instance_types      = ["t3.medium"]
 rds_instance_class       = "db.t3.medium"
 s3_video_retention_days  = 365
+opensearch_instance_type  = "r6g.large.search"
+opensearch_instance_count = 2
+opensearch_volume_size    = 50

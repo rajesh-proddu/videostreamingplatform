@@ -82,3 +82,13 @@ output "eks_oidc_provider_arn" {
   description = "EKS OIDC provider ARN"
   value       = aws_iam_openid_connect_provider.eks.arn
 }
+
+output "opensearch_endpoint" {
+  description = "OpenSearch domain endpoint"
+  value       = "https://${aws_opensearch_domain.main.endpoint}"
+}
+
+output "opensearch_irsa_role_arn" {
+  description = "IRSA role ARN for OpenSearch access"
+  value       = aws_iam_role.opensearch_irsa.arn
+}
