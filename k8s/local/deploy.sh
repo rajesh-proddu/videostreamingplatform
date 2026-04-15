@@ -78,7 +78,7 @@ create_grafana_dashboards_configmap() {
 
   log "Creating Grafana dashboards configmap..."
   kubectl create configmap grafana-dashboards \
-    --namespace="$NAMESPACE" \
+    --namespace=observability \
     --from-file="$dashboards_dir" \
     --dry-run=client -o yaml | kubectl apply -f -
 }
@@ -131,9 +131,15 @@ deploy_manifests() {
 show_status() {
   log "Cluster: kind-${CLUSTER_NAME}"
   echo ""
+  log "Namespace: $NAMESPACE"
   kubectl get pods -n "$NAMESPACE" -o wide 2>/dev/null || warn "Namespace not found"
   echo ""
   kubectl get svc -n "$NAMESPACE" 2>/dev/null || true
+  echo ""
+  log "Namespace: observability"
+  kubectl get pods -n observability -o wide 2>/dev/null || warn "Namespace not found"
+  echo ""
+  kubectl get svc -n observability 2>/dev/null || true
   echo ""
   log "Access URLs (via KIND NodePort mappings):"
   echo "  Metadata Service: http://localhost:8080"
