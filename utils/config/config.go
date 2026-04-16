@@ -51,6 +51,22 @@ type Config struct {
 
 	// Recommendation service URL (empty = disabled)
 	RecommendationServiceURL string
+
+	// Redis cache configuration
+	RedisAddr     string
+	RedisPassword string
+	RedisDB       int
+
+	// Cache TTL configuration (in seconds)
+	CacheTTLGetVideo    int // single video cache TTL
+	CacheTTLListVideos  int // list videos cache TTL
+
+	// Rate limiting configuration
+	RateLimitPerMin int // requests per minute per IP
+	RateLimitBurst  int // burst capacity
+
+	// CDN configuration
+	CDNDistributionID string // CloudFront distribution ID (empty = CDN invalidation disabled)
 }
 
 // New creates a new Config instance from environment variables
@@ -69,7 +85,7 @@ func New(serviceName string) *Config {
 		MySQLUser:                getEnvOrDefault("MYSQL_USER", "videouser"),
 		MySQLPassword:            getEnvOrDefault("MYSQL_PASSWORD", "videopass"),
 		MySQLDatabase:            getEnvOrDefault("MYSQL_DATABASE", "videoplatform"),
-		MySQLMaxConn:             getEnvAsInt("MYSQL_MAX_CONN", 25),
+		MySQLMaxConn:             getEnvAsInt("MYSQL_MAX_CONN", 50),
 		S3Region:                 getEnvOrDefault("S3_REGION", "us-east-1"),
 		S3Bucket:                 getEnvOrDefault("S3_BUCKET", "video-platform-storage"),
 		OTelEnabled:              getEnvAsBool("OTEL_ENABLED", false),
@@ -80,6 +96,14 @@ func New(serviceName string) *Config {
 		KafkaWatchTopic:          getEnvOrDefault("KAFKA_WATCH_TOPIC", "watch-events"),
 		UploadStore:              getEnvOrDefault("UPLOAD_STORE", "mysql"),
 		RecommendationServiceURL: getEnvOrDefault("RECOMMENDATION_SERVICE_URL", ""),
+		RedisAddr:                getEnvOrDefault("REDIS_ADDR", ""),
+		RedisPassword:            getEnvOrDefault("REDIS_PASSWORD", ""),
+		RedisDB:                  getEnvAsInt("REDIS_DB", 0),
+		CacheTTLGetVideo:         getEnvAsInt("CACHE_TTL_GET_VIDEO", 300),     // 5 minutes default
+		CacheTTLListVideos:       getEnvAsInt("CACHE_TTL_LIST_VIDEOS", 60),    // 1 minute default
+		RateLimitPerMin:          getEnvAsInt("RATE_LIMIT_PER_MIN", 60),       // 60 req/min default
+		RateLimitBurst:           getEnvAsInt("RATE_LIMIT_BURST", 100),        // burst of 100 default
+		CDNDistributionID:        getEnvOrDefault("CDN_DISTRIBUTION_ID", ""),
 	}
 }
 

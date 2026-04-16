@@ -111,3 +111,23 @@ variable "opensearch_volume_size" {
   type        = number
   default     = 20
 }
+
+# ─── CloudFront CDN ────────────────────────────────────────────────────────
+
+variable "cloudfront_price_class" {
+  description = "CloudFront price class (PriceClass_100 = US/EU only, cheapest)"
+  type        = string
+  default     = "PriceClass_100"
+}
+
+variable "cloudfront_default_ttl" {
+  description = "Default TTL in seconds for CloudFront cache"
+  type        = number
+  default     = 86400
+}
+
+variable "cloudfront_max_ttl" {
+  description = "Max TTL in seconds for CloudFront cache"
+  type        = number
+  default     = 604800
+}

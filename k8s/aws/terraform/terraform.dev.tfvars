@@ -14,3 +14,6 @@ s3_video_retention_days  = 30
 opensearch_instance_type  = "t3.small.search"
 opensearch_instance_count = 1
 opensearch_volume_size    = 10
+cloudfront_price_class    = "PriceClass_100"
+cloudfront_default_ttl    = 3600
+cloudfront_max_ttl        = 86400

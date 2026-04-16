@@ -14,3 +14,6 @@ s3_video_retention_days  = 365
 opensearch_instance_type  = "r6g.large.search"
 opensearch_instance_count = 2
 opensearch_volume_size    = 50
+cloudfront_price_class    = "PriceClass_200"
+cloudfront_default_ttl    = 86400
+cloudfront_max_ttl        = 604800

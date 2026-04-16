@@ -97,6 +97,8 @@ deploy_manifests() {
   # Infrastructure
   kubectl apply -f "$K8S_LOCAL/mysql.yaml"
   kubectl apply -f "$K8S_LOCAL/minio.yaml"
+  kubectl apply -f "$K8S_LOCAL/redis.yaml"
+  kubectl apply -f "$K8S_LOCAL/cdn-proxy.yaml"
 
   # Observability
   kubectl apply -f "$K8S_LOCAL/observability.yaml"
@@ -112,6 +114,11 @@ deploy_manifests() {
   kubectl wait --namespace="$NAMESPACE" \
     --for=condition=ready pod -l app=minio \
     --timeout=90s || warn "MinIO not ready yet, continuing..."
+
+  log "Waiting for Redis to be ready..."
+  kubectl wait --namespace="$NAMESPACE" \
+    --for=condition=ready pod -l app=redis \
+    --timeout=60s || warn "Redis not ready yet, continuing..."
 
   # Application services
   kubectl apply -f "$K8S_LOCAL/services.yaml"

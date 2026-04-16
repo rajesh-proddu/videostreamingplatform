@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/yourusername/videostreamingplatform/dataservice/pb"
 	"github.com/yourusername/videostreamingplatform/dataservice/storage"
 
+	"github.com/yourusername/videostreamingplatform/utils/cache"
 	"github.com/yourusername/videostreamingplatform/utils/config"
 	"github.com/yourusername/videostreamingplatform/utils/kafka"
 	"github.com/yourusername/videostreamingplatform/utils/middleware"
@@ -111,9 +113,25 @@ func main() {
 	mux.HandleFunc("GET /videos/{id}/download", uploadHandler.Download)
 	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 
+	// Initialize Redis for rate limiting (best-effort: nil = in-memory fallback)
+	redisCache := cache.New(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
+	var redisClient = redisCache.RedisClient()
+	if redisClient != nil {
+		defer func() { _ = redisCache.Close() }()
+	}
+
+	// Initialize rate limiter (uses Redis if available, falls back to in-memory per-pod)
+	rateLimiter := middleware.NewRateLimiter(redisClient, cfg.RateLimitPerMin, time.Minute, cfg.RateLimitBurst)
+	if redisClient != nil {
+		logger.Printf("Rate limiter enabled (distributed/Redis): %d req/min", cfg.RateLimitPerMin)
+	} else {
+		logger.Printf("Rate limiter enabled (in-memory fallback): %d req/min, burst %d", cfg.RateLimitPerMin, cfg.RateLimitBurst)
+	}
+
 	// Apply middleware to HTTP server
 	httpHandler := middleware.ChainMiddleware(
 		mux,
+		rateLimiter.Middleware,
 		func(next http.Handler) http.Handler {
 			return middleware.LoggingMiddleware(logger, next)
 		},

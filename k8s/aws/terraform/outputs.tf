@@ -92,3 +92,13 @@ output "opensearch_irsa_role_arn" {
   description = "IRSA role ARN for OpenSearch access"
   value       = aws_iam_role.opensearch_irsa.arn
 }
+
+output "cloudfront_distribution_id" {
+  description = "CloudFront distribution ID for video CDN"
+  value       = aws_cloudfront_distribution.videos.id
+}
+
+output "cloudfront_domain_name" {
+  description = "CloudFront domain name for video downloads"
+  value       = aws_cloudfront_distribution.videos.domain_name
+}

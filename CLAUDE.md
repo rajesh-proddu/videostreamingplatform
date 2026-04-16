@@ -49,7 +49,7 @@ The linter excludes `dataservice/pb/` (generated gRPC code). Enabled linters: `e
 ## Local Infrastructure
 
 ```bash
-# Start MySQL, LocalStack (S3), Jaeger, Prometheus, Grafana
+# Start MySQL, Redis, LocalStack (S3), Jaeger, Prometheus, Grafana
 cd build && docker-compose up
 
 # Copy and edit environment config
@@ -87,11 +87,12 @@ Dependency direction: `handlers → bl → dl → db`. The `bl` layer depends on
 
 All utilities live in `utils/` and are imported by both services:
 
-- **`utils/config`** — All config from env vars via `config.New(serviceName)`. Key vars: `ENVIRONMENT`, `MYSQL_*`, `S3_*`, `KAFKA_BROKERS`, `KAFKA_VIDEO_TOPIC`, `KAFKA_WATCH_TOPIC`, `UPLOAD_STORE` (`memory`|`mysql`), `OTEL_EXPORTER_OTLP_ENDPOINT`, `RECOMMENDATION_SERVICE_URL`.
+- **`utils/config`** — All config from env vars via `config.New(serviceName)`. Key vars: `ENVIRONMENT`, `MYSQL_*`, `S3_*`, `KAFKA_BROKERS`, `KAFKA_VIDEO_TOPIC`, `KAFKA_WATCH_TOPIC`, `UPLOAD_STORE` (`memory`|`mysql`), `OTEL_EXPORTER_OTLP_ENDPOINT`, `RECOMMENDATION_SERVICE_URL`, `REDIS_ADDR`, `REDIS_PASSWORD`, `REDIS_DB`, `CACHE_TTL_*`, `RATE_LIMIT_*`.
 - **`utils/observability`** — Logger, OTel tracing (`InitTracer`), Prometheus metrics (`InitMetrics`). Tracing only initializes when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Metrics only when explicitly initialized.
 - **`utils/kafka`** — `Producer` interface + `KafkaProducer` impl (segmentio/kafka-go). Kafka is **optional**—both services skip it gracefully if `KAFKA_BROKERS` is empty.
 - **`utils/events`** — Avro event structs: `video_event.go` (VIDEO_CREATED/UPDATED/DELETED), `watch_event.go` (WATCH_STARTED/WATCH_COMPLETED).
-- **`utils/middleware`** — `ChainMiddleware`, `LoggingMiddleware`, `ErrorHandlingMiddleware`.
+- **`utils/cache`** — Redis-backed cache (`cache.New(addr, pass, db)`). Nil-safe: all methods no-op if `c==nil` or `addr=""`. Used in `metadataservice` for video metadata caching. Key helpers: `VideoKey(id)` → `video:{id}`, `ListKey(limit, offset)` → `videos:list:{limit}:{offset}`. Env vars: `REDIS_ADDR`, `REDIS_PASSWORD`, `REDIS_DB`, `CACHE_TTL_GET_VIDEO`, `CACHE_TTL_LIST_VIDEOS`.
+- **`utils/middleware`** — `ChainMiddleware`, `LoggingMiddleware`, `ErrorHandlingMiddleware`, `RateLimiter` (per-IP token bucket). Env vars: `RATE_LIMIT_PER_MIN`, `RATE_LIMIT_BURST`.
 - **`utils/recommendations`** — HTTP client for calling the recommendations service (Python/FastAPI). Only wired in `metadataservice`.
 - **`utils/errors`** — Shared error types.
 
@@ -106,6 +107,7 @@ All utilities live in `utils/` and are imported by both services:
 
 - HTTP only, no gRPC.
 - Publishes `VideoEvent` to Kafka (`video-events` topic) on create/update/delete via functional option `bl.WithKafkaProducer(...)`.
+- Redis caching via `bl.WithCache(...)`: caches `GetVideo`/`ListVideos`, invalidates on `CreateVideo`/`UpdateVideo`/`DeleteVideo`.
 - Routes `/recommendations` to the external recommendations service via `utils/recommendations.Client`.
 
 ### Event Flow

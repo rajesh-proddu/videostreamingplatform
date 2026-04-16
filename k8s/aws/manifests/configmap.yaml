@@ -9,3 +9,15 @@ data:
   S3_BUCKET: ${S3_BUCKET}
   ELASTICSEARCH_URL: ${OPENSEARCH_ENDPOINT}
   LOG_LEVEL: info
+
+  # Redis cache (set REDIS_ADDR to ElastiCache endpoint or in-cluster Redis)
+  REDIS_ADDR: ${REDIS_ENDPOINT}
+  CACHE_TTL_GET_VIDEO: "300"
+  CACHE_TTL_LIST_VIDEOS: "60"
+
+  # Rate limiting
+  RATE_LIMIT_PER_MIN: "200"
+  RATE_LIMIT_BURST: "300"
+
+  # MySQL
+  MYSQL_MAX_CONN: "50"

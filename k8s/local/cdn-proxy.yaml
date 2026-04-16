@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cdn-proxy-config
+  namespace: videostreamingplatform
+data:
+  default.conf: |
+    proxy_cache_path /var/cache/nginx/cdn levels=1:2 keys_zone=video_cdn:10m
+                     max_size=1g inactive=24h use_temp_path=off;
+
+    server {
+        listen 8090;
+        server_name localhost;
+
+        location /health {
+            return 200 '{"status":"healthy","service":"cdn-proxy"}';
+            add_header Content-Type application/json;
+        }
+
+        location ~ /videos/(.+) {
+            if ($request_method = PURGE) {
+                return 204;
+            }
+
+            proxy_pass http://minio.videostreamingplatform.svc.cluster.local:9000/video-platform-storage/videos/$1;
+            proxy_set_header Host minio.videostreamingplatform.svc.cluster.local:9000;
+
+            proxy_cache video_cdn;
+            proxy_cache_valid 200 24h;
+            proxy_cache_valid 404 1m;
+            proxy_cache_use_stale error timeout updating http_500 http_502 http_503;
+
+            add_header X-Cache-Status $upstream_cache_status;
+            add_header X-Served-By "local-cdn-proxy";
+
+            proxy_cache_methods GET HEAD;
+        }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cdn-proxy
+  namespace: videostreamingplatform
+  labels:
+    app: cdn-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cdn-proxy
+  template:
+    metadata:
+      labels:
+        app: cdn-proxy
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 8090
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/conf.d
+            - name: cache
+              mountPath: /var/cache/nginx/cdn
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8090
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8090
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: cdn-proxy-config
+        - name: cache
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cdn-proxy
+  namespace: videostreamingplatform
+  labels:
+    app: cdn-proxy
+spec:
+  selector:
+    app: cdn-proxy
+  ports:
+    - port: 8090
+      targetPort: 8090
+  type: ClusterIP

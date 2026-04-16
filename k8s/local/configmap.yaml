@@ -24,6 +24,18 @@ data:
   KAFKA_VIDEO_TOPIC: video-events
   KAFKA_WATCH_TOPIC: watch-events
 
+  # Redis cache
+  REDIS_ADDR: redis.videostreamingplatform.svc.cluster.local:6379
+  CACHE_TTL_GET_VIDEO: "300"
+  CACHE_TTL_LIST_VIDEOS: "60"
+
+  # Rate limiting
+  RATE_LIMIT_PER_MIN: "100"
+  RATE_LIMIT_BURST: "150"
+
+  # MySQL
+  MYSQL_MAX_CONN: "50"
+
   # Elasticsearch
   ELASTICSEARCH_URL: http://elasticsearch.videostreamingplatform.svc.cluster.local:9200
 

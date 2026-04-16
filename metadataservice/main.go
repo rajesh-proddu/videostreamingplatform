@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/yourusername/videostreamingplatform/metadataservice/dl"
 	"github.com/yourusername/videostreamingplatform/metadataservice/handlers"
 
+	"github.com/yourusername/videostreamingplatform/utils/cache"
 	"github.com/yourusername/videostreamingplatform/utils/config"
 	"github.com/yourusername/videostreamingplatform/utils/kafka"
 	"github.com/yourusername/videostreamingplatform/utils/middleware"
@@ -68,7 +70,29 @@ func main() {
 	// Initialize service layers
 	repo := dl.NewVideoRepository(database)
 
+	// Initialize Redis cache (best-effort: nil if not configured)
+	redisCache := cache.New(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
+	if redisCache != nil {
+		if err := redisCache.Ping(context.Background()); err != nil {
+			logger.Printf("WARNING: Redis not reachable: %v (caching disabled)", err)
+			redisCache = nil
+		} else {
+			defer func() { _ = redisCache.Close() }()
+			logger.Printf("Redis cache enabled → %s", cfg.RedisAddr)
+		}
+	}
+
 	var serviceOpts []bl.VideoServiceOption
+
+	// Add cache option if Redis is available
+	if redisCache != nil {
+		serviceOpts = append(serviceOpts, bl.WithCache(
+			redisCache,
+			time.Duration(cfg.CacheTTLGetVideo)*time.Second,
+			time.Duration(cfg.CacheTTLListVideos)*time.Second,
+		))
+	}
+
 	if cfg.KafkaBrokers != "" {
 		brokers := strings.Split(cfg.KafkaBrokers, ",")
 		videoProducer := kafka.NewProducer(brokers, cfg.KafkaVideoTopic)
@@ -104,9 +128,19 @@ func main() {
 	mux.HandleFunc("GET /recommendations", recoHandler.GetRecommendations)
 	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 
+	// Initialize rate limiter (uses Redis if available, falls back to in-memory per-pod)
+	var redisClient = redisCache.RedisClient()
+	rateLimiter := middleware.NewRateLimiter(redisClient, cfg.RateLimitPerMin, time.Minute, cfg.RateLimitBurst)
+	if redisClient != nil {
+		logger.Printf("Rate limiter enabled (distributed/Redis): %d req/min", cfg.RateLimitPerMin)
+	} else {
+		logger.Printf("Rate limiter enabled (in-memory fallback): %d req/min, burst %d", cfg.RateLimitPerMin, cfg.RateLimitBurst)
+	}
+
 	// Apply middleware
 	httpHandler := middleware.ChainMiddleware(
 		mux,
+		rateLimiter.Middleware,
 		func(next http.Handler) http.Handler {
 			return middleware.LoggingMiddleware(logger, next)
 		},
