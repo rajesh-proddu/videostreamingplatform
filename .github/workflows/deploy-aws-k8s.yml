@@ -68,9 +68,11 @@ jobs:
             --from-literal=database="videoplatform" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-          # Apply configmap with dynamic S3 bucket name
+          # Apply configmap with dynamic values
           export S3_BUCKET="${{ secrets.S3_VIDEOS_BUCKET }}"
           export AWS_REGION="${{ env.AWS_REGION }}"
+          export REDIS_ENDPOINT="${{ secrets.REDIS_ENDPOINT }}"
+          export OPENSEARCH_ENDPOINT="${{ secrets.OPENSEARCH_ENDPOINT }}"
           envsubst < k8s/aws/manifests/configmap.yaml | kubectl apply -f -
 
       - name: Deploy services
@@ -80,6 +82,12 @@ jobs:
           kubectl apply -f k8s/aws/manifests/services.yaml
           envsubst < k8s/aws/manifests/metadata-service-deploy.yaml | kubectl apply -f -
           envsubst < k8s/aws/manifests/data-service-deploy.yaml | kubectl apply -f -
+
+          # Deploy cdn-invalidator worker
+          export CDN_INVALIDATOR_IMAGE="ghcr.io/${{ github.repository }}/cdn-invalidator:${{ github.event.inputs.image_tag }}"
+          export CDN_DISTRIBUTION_ID="${{ secrets.CDN_DISTRIBUTION_ID }}"
+          export KAFKA_BROKERS="${{ secrets.KAFKA_BROKERS }}"
+          envsubst < k8s/aws/manifests/cdn-invalidator-deploy.yaml | kubectl apply -f -
 
       - name: Update image tags
         run: |

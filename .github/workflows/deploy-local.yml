@@ -43,21 +43,27 @@ jobs:
         run: |
           docker pull ghcr.io/${{ github.repository }}/metadata-service:${{ github.event.inputs.image_tag }}
           docker pull ghcr.io/${{ github.repository }}/data-service:${{ github.event.inputs.image_tag }}
+          docker pull ghcr.io/${{ github.repository }}/cdn-invalidator:${{ github.event.inputs.image_tag }}
           kind load docker-image ghcr.io/${{ github.repository }}/metadata-service:${{ github.event.inputs.image_tag }}
           kind load docker-image ghcr.io/${{ github.repository }}/data-service:${{ github.event.inputs.image_tag }}
+          kind load docker-image ghcr.io/${{ github.repository }}/cdn-invalidator:${{ github.event.inputs.image_tag }}
 
       - name: Deploy infrastructure and application
         run: |
           kubectl create namespace videostreamingplatform --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create namespace observability --dry-run=client -o yaml | kubectl apply -f -
           kubectl apply -f k8s/local/secrets.yaml
           kubectl apply -f k8s/local/mysql-init.yaml
           kubectl apply -f k8s/local/mysql.yaml
           kubectl apply -f k8s/local/minio.yaml
+          kubectl apply -f k8s/local/redis.yaml
+          kubectl apply -f k8s/local/cdn-proxy.yaml
           kubectl apply -f k8s/local/configmap.yaml
           kubectl apply -f k8s/local/services.yaml
           kubectl apply -f k8s/local/observability.yaml
           kubectl apply -f k8s/local/metadata-service-deploy.yaml
           kubectl apply -f k8s/local/data-service-deploy.yaml
+          kubectl apply -f k8s/local/cdn-invalidator-deploy.yaml
 
       - name: Wait for infrastructure
         run: |
@@ -65,6 +71,8 @@ jobs:
           kubectl rollout status deployment/mysql -n videostreamingplatform --timeout=5m
           echo "Waiting for MinIO..."
           kubectl rollout status deployment/minio -n videostreamingplatform --timeout=3m
+          echo "Waiting for Redis..."
+          kubectl rollout status deployment/redis -n videostreamingplatform --timeout=2m
 
       - name: Wait for application services
         run: |

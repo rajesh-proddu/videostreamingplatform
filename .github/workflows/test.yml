@@ -60,6 +60,16 @@ jobs:
         ports:
           - 9092:9092
 
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+        ports:
+          - 6379:6379
+
       elasticsearch:
         image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
         env:
@@ -86,6 +96,8 @@ jobs:
         run: go mod download
 
       - name: Run unit tests
+        env:
+          REDIS_ADDR: localhost:6379
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
 
       - name: Upload coverage
@@ -115,6 +127,11 @@ jobs:
         run: |
           CGO_ENABLED=0 GOOS=linux go build -o bin/data-service ./dataservice
           ls -lh bin/data-service
+
+      - name: Build cdn-invalidator worker
+        run: |
+          CGO_ENABLED=0 GOOS=linux go build -o bin/cdn-invalidator ./workers/cdn-invalidator
+          ls -lh bin/cdn-invalidator
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

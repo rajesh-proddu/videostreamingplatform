@@ -9,6 +9,13 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
+  name: infra
+  labels:
+    name: infra
+---
+apiVersion: v1
+kind: Namespace
+metadata:
   name: observability
   labels:
     name: observability

@@ -34,6 +34,11 @@ spec:
           env:
             - name: HTTP_PORT
               value: "8081"
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
           resources:
             requests:
               cpu: 200m

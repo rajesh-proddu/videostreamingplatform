@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cdn-invalidator
+  namespace: videostreamingplatform
+  labels:
+    app: cdn-invalidator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cdn-invalidator
+  template:
+    metadata:
+      labels:
+        app: cdn-invalidator
+    spec:
+      containers:
+        - name: cdn-invalidator
+          image: ${CDN_INVALIDATOR_IMAGE}
+          envFrom:
+            - configMapRef:
+                name: app-config
+          env:
+            - name: CDN_DISTRIBUTION_ID
+              value: ${CDN_DISTRIBUTION_ID}
+            - name: KAFKA_BROKERS
+              value: ${KAFKA_BROKERS}
+            - name: KAFKA_VIDEO_TOPIC
+              value: video-events
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi

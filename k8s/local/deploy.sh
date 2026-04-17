@@ -63,10 +63,13 @@ build_and_load_images() {
     -f "$REPO_ROOT/build/docker/metadataservice.Dockerfile" "$REPO_ROOT"
   docker build -t videostreamingplatform/data-service:latest \
     -f "$REPO_ROOT/build/docker/dataservice.Dockerfile" "$REPO_ROOT"
+  docker build -t videostreamingplatform/cdn-invalidator:latest \
+    -f "$REPO_ROOT/build/docker/cdn-invalidator.Dockerfile" "$REPO_ROOT"
 
   log "Loading images into KIND cluster..."
   kind load docker-image videostreamingplatform/metadata-service:latest --name "$CLUSTER_NAME"
   kind load docker-image videostreamingplatform/data-service:latest --name "$CLUSTER_NAME"
+  kind load docker-image videostreamingplatform/cdn-invalidator:latest --name "$CLUSTER_NAME"
 }
 
 create_grafana_dashboards_configmap() {
@@ -98,6 +101,7 @@ deploy_manifests() {
   kubectl apply -f "$K8S_LOCAL/mysql.yaml"
   kubectl apply -f "$K8S_LOCAL/minio.yaml"
   kubectl apply -f "$K8S_LOCAL/redis.yaml"
+  kubectl apply -f "$K8S_LOCAL/kafka.yaml"
   kubectl apply -f "$K8S_LOCAL/cdn-proxy.yaml"
 
   # Observability
@@ -124,6 +128,7 @@ deploy_manifests() {
   kubectl apply -f "$K8S_LOCAL/services.yaml"
   kubectl apply -f "$K8S_LOCAL/metadata-service-deploy.yaml"
   kubectl apply -f "$K8S_LOCAL/data-service-deploy.yaml"
+  kubectl apply -f "$K8S_LOCAL/cdn-invalidator-deploy.yaml"
 
   log "Waiting for services to be ready..."
   kubectl wait --namespace="$NAMESPACE" \

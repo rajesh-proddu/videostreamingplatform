@@ -6,6 +6,7 @@ on:
     paths:
       - 'metadataservice/**'
       - 'dataservice/**'
+      - 'workers/**'
       - 'utils/**'
       - 'build/docker/**'
       - 'go.mod'
@@ -36,6 +37,8 @@ jobs:
             dockerfile: build/docker/metadataservice.Dockerfile
           - name: data-service
             dockerfile: build/docker/dataservice.Dockerfile
+          - name: cdn-invalidator
+            dockerfile: build/docker/cdn-invalidator.Dockerfile
     steps:
       - uses: actions/checkout@v4
         with:

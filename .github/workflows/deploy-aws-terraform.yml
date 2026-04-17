@@ -124,9 +124,12 @@ jobs:
             --from-literal=database="${{ steps.tf-outputs.outputs.rds_db_name }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-          # Update ConfigMap with dynamic S3 bucket
+          # Update ConfigMap with dynamic values
           export S3_BUCKET="${{ steps.tf-outputs.outputs.s3_bucket }}"
           export AWS_REGION="${{ env.AWS_REGION }}"
+          export REDIS_ENDPOINT="${{ secrets.REDIS_ENDPOINT }}"
+          OPENSEARCH_EP=$(terraform -chdir=k8s/aws/terraform output -raw opensearch_endpoint 2>/dev/null || echo "")
+          export OPENSEARCH_ENDPOINT="${OPENSEARCH_EP}"
           envsubst < k8s/aws/manifests/configmap.yaml | kubectl apply -f -
 
           # Update deploy manifests with IRSA role ARNs
@@ -135,6 +138,13 @@ jobs:
           envsubst < k8s/aws/manifests/metadata-service-deploy.yaml | kubectl apply -f -
           envsubst < k8s/aws/manifests/data-service-deploy.yaml | kubectl apply -f -
           kubectl apply -f k8s/aws/manifests/services.yaml
+
+          # Deploy cdn-invalidator worker
+          CDN_DIST_ID=$(terraform -chdir=k8s/aws/terraform output -raw cloudfront_distribution_id 2>/dev/null || echo "")
+          export CDN_INVALIDATOR_IMAGE="ghcr.io/${{ github.repository }}/cdn-invalidator:${{ github.event.inputs.image_tag }}"
+          export CDN_DISTRIBUTION_ID="${CDN_DIST_ID}"
+          export KAFKA_BROKERS="${{ secrets.KAFKA_BROKERS }}"
+          envsubst < k8s/aws/manifests/cdn-invalidator-deploy.yaml | kubectl apply -f -
 
           # Deploy observability stack
           kubectl apply -f k8s/aws/manifests/observability/namespace.yaml
