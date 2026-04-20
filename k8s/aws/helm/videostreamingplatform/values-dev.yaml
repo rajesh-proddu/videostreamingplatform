@@ -1,6 +1,9 @@
 global:
   environment: dev
 
+image:
+  tag: "7325721"
+
 metadataService:
   replicas: 2
   irsa:
