@@ -2,7 +2,7 @@ global:
   environment: dev
 
 image:
-  tag: "7325721"
+  tag: latest
 
 metadataService:
   replicas: 2
