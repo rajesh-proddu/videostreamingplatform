@@ -2,39 +2,12 @@ package bl
 
 import (
 	"context"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/yourusername/videostreamingplatform/metadataservice/dl"
 	"github.com/yourusername/videostreamingplatform/metadataservice/models"
 )
-
-// mockCache implements a minimal in-memory cache for testing cache integration
-// without requiring Redis. Mirrors the utils/cache.Cache interface used by VideoService.
-type mockCache struct {
-	mu      sync.Mutex
-	store   map[string][]byte
-	deletes []string // records deleted keys for assertions
-}
-
-func newMockCache() *mockCache {
-	return &mockCache{store: make(map[string][]byte)}
-}
-
-func (m *mockCache) getDeletedKeys() []string {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	cp := make([]string, len(m.deletes))
-	copy(cp, m.deletes)
-	return cp
-}
-
-// setupServiceWithCache creates a VideoService with an in-memory store and a real
-// cache.Cache backed by a mockCache. Since cache.Cache methods are nil-safe and
-// the VideoService checks `s.cache != nil`, we need a real *cache.Cache with a
-// working Redis. For unit tests without Redis, we test through the service layer
-// to verify cache behavior is wired correctly (nil-safe path).
 
 func setupServiceNoCache(t *testing.T) *VideoService {
 	t.Helper()

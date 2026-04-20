@@ -16,10 +16,10 @@ import (
 // When Redis is available, counters are shared across all pods.
 // Falls back to in-memory counters if Redis is nil or unreachable.
 type RateLimiter struct {
-	redis    *redis.Client
-	rate     int           // max requests per window
-	window   time.Duration // window size
-	burst    int           // burst capacity (used only for in-memory fallback)
+	redis  *redis.Client
+	rate   int           // max requests per window
+	window time.Duration // window size
+	burst  int           // burst capacity (used only for in-memory fallback)
 
 	// In-memory fallback when Redis is unavailable
 	mu       sync.Mutex

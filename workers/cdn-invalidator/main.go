@@ -86,9 +86,9 @@ func main() {
 
 // videoEvent mirrors the event structure for deserialization.
 type videoEvent struct {
-	Version   string          `json:"version"`
-	Type      string          `json:"type"`
-	Payload   json.RawMessage `json:"payload"`
+	Version string          `json:"version"`
+	Type    string          `json:"type"`
+	Payload json.RawMessage `json:"payload"`
 }
 
 // deletePayload is the payload for VIDEO_DELETED events.

@@ -47,8 +47,8 @@ func TestNew_Defaults(t *testing.T) {
 	if cfg.MySQLDatabase != "videoplatform" {
 		t.Errorf("MySQLDatabase = %q, want %q", cfg.MySQLDatabase, "videoplatform")
 	}
-	if cfg.MySQLMaxConn != 25 {
-		t.Errorf("MySQLMaxConn = %d, want 25", cfg.MySQLMaxConn)
+	if cfg.MySQLMaxConn != 50 {
+		t.Errorf("MySQLMaxConn = %d, want 50", cfg.MySQLMaxConn)
 	}
 	if cfg.S3Region != "us-east-1" {
 		t.Errorf("S3Region = %q, want %q", cfg.S3Region, "us-east-1")

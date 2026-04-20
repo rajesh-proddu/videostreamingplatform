@@ -9,12 +9,11 @@ linters:
     - staticcheck
     - unused
     - gocritic
+  exclusions:
+    paths:
+      - dataservice/pb
 
 formatters:
   enable:
     - gofmt
     - goimports
-
-issues:
-  exclude-dirs:
-    - dataservice/pb

@@ -15,12 +15,12 @@ import (
 
 // VideoService handles business logic for video operations
 type VideoService struct {
-	repo                *dl.VideoRepository
-	producer            kafka.Producer
-	logger              *log.Logger
-	cache               *cache.Cache
-	cacheTTLGetVideo    time.Duration
-	cacheTTLListVideos  time.Duration
+	repo               *dl.VideoRepository
+	producer           kafka.Producer
+	logger             *log.Logger
+	cache              *cache.Cache
+	cacheTTLGetVideo   time.Duration
+	cacheTTLListVideos time.Duration
 }
 
 // NewVideoService creates a new video service

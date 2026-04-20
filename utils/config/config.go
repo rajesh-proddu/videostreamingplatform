@@ -58,8 +58,8 @@ type Config struct {
 	RedisDB       int
 
 	// Cache TTL configuration (in seconds)
-	CacheTTLGetVideo    int // single video cache TTL
-	CacheTTLListVideos  int // list videos cache TTL
+	CacheTTLGetVideo   int // single video cache TTL
+	CacheTTLListVideos int // list videos cache TTL
 
 	// Rate limiting configuration
 	RateLimitPerMin int // requests per minute per IP
@@ -99,10 +99,10 @@ func New(serviceName string) *Config {
 		RedisAddr:                getEnvOrDefault("REDIS_ADDR", ""),
 		RedisPassword:            getEnvOrDefault("REDIS_PASSWORD", ""),
 		RedisDB:                  getEnvAsInt("REDIS_DB", 0),
-		CacheTTLGetVideo:         getEnvAsInt("CACHE_TTL_GET_VIDEO", 300),     // 5 minutes default
-		CacheTTLListVideos:       getEnvAsInt("CACHE_TTL_LIST_VIDEOS", 60),    // 1 minute default
-		RateLimitPerMin:          getEnvAsInt("RATE_LIMIT_PER_MIN", 60),       // 60 req/min default
-		RateLimitBurst:           getEnvAsInt("RATE_LIMIT_BURST", 100),        // burst of 100 default
+		CacheTTLGetVideo:         getEnvAsInt("CACHE_TTL_GET_VIDEO", 300),  // 5 minutes default
+		CacheTTLListVideos:       getEnvAsInt("CACHE_TTL_LIST_VIDEOS", 60), // 1 minute default
+		RateLimitPerMin:          getEnvAsInt("RATE_LIMIT_PER_MIN", 60),    // 60 req/min default
+		RateLimitBurst:           getEnvAsInt("RATE_LIMIT_BURST", 100),     // burst of 100 default
 		CDNDistributionID:        getEnvOrDefault("CDN_DISTRIBUTION_ID", ""),
 	}
 }
