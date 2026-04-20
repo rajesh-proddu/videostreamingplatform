@@ -160,7 +160,7 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 // @Failure      500  {string}  string  "Internal server error"
 // @Router       /videos/{id}/download [get]
 func (h *UploadHandler) Download(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -171,29 +171,55 @@ func (h *UploadHandler) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		userID = r.Header.Get("X-User-ID")
-	}
-
-	sessionID := uuid.New().String()
-
-	// Publish watch.started event (best-effort)
-	h.publishWatchEvent(r, events.WatchStarted, videoID, userID, sessionID, 0)
-
-	// Download from S3
+	rangeHeader := r.Header.Get("Range")
 	key := "videos/" + videoID
-	body, err := h.storage.Download(r.Context(), key)
+
+	obj, err := h.storage.Download(r.Context(), key, rangeHeader)
 	if err != nil {
 		http.Error(w, "Failed to download file", http.StatusInternalServerError)
 		return
 	}
-	defer func() { _ = body.Close() }()
+	defer func() { _ = obj.Body.Close() }()
 
-	// Stream to client
-	w.Header().Set("Content-Type", "video/mp4")
-	w.Header().Set("Content-Disposition", "attachment; filename=video.mp4")
-	bytesWritten, err := io.Copy(w, body)
+	contentType := obj.ContentType
+	if contentType == "" {
+		contentType = "video/mp4"
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Accept-Ranges", "bytes")
+	w.Header().Set("Content-Disposition", "inline; filename=video.mp4")
+	if obj.ETag != "" {
+		w.Header().Set("ETag", obj.ETag)
+	}
+	if obj.ContentLength > 0 {
+		w.Header().Set("Content-Length", strconv.FormatInt(obj.ContentLength, 10))
+	}
+
+	status := http.StatusOK
+	if obj.ContentRange != "" {
+		w.Header().Set("Content-Range", obj.ContentRange)
+		status = http.StatusPartialContent
+	}
+
+	// Watch events are only meaningful for a full-object playback request.
+	// Partial (Range) requests come from player scrubbing/buffering; those
+	// clients are expected to report watch telemetry themselves.
+	isFull := rangeHeader == ""
+	userID := r.URL.Query().Get("user_id")
+	if userID == "" {
+		userID = r.Header.Get("X-User-ID")
+	}
+	sessionID := uuid.New().String()
+	if isFull {
+		h.publishWatchEvent(r, events.WatchStarted, videoID, userID, sessionID, 0)
+	}
+
+	w.WriteHeader(status)
+	if r.Method == http.MethodHead {
+		return
+	}
+
+	bytesWritten, err := io.Copy(w, obj.Body)
 	if err != nil {
 		// Cannot write HTTP error after partial response
 		if h.logger != nil {
@@ -202,8 +228,9 @@ func (h *UploadHandler) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Publish watch.completed event (best-effort)
-	h.publishWatchEvent(r, events.WatchCompleted, videoID, userID, sessionID, bytesWritten)
+	if isFull {
+		h.publishWatchEvent(r, events.WatchCompleted, videoID, userID, sessionID, bytesWritten)
+	}
 }
 
 // publishWatchEvent publishes a watch event to Kafka (best-effort: logs errors, never fails the request).
@@ -300,17 +327,17 @@ func (h *UploadHandler) CompleteUpload(w http.ResponseWriter, r *http.Request) {
 	var merged bytes.Buffer
 	for i := 0; i < progress.UploadedChunks; i++ {
 		chunkKey := fmt.Sprintf("videos/%s/chunk_%d", progress.VideoID, i)
-		body, err := h.storage.Download(r.Context(), chunkKey)
+		obj, err := h.storage.Download(r.Context(), chunkKey, "")
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to read chunk %d", i), http.StatusInternalServerError)
 			return
 		}
-		if _, err := io.Copy(&merged, body); err != nil {
-			_ = body.Close()
+		if _, err := io.Copy(&merged, obj.Body); err != nil {
+			_ = obj.Body.Close()
 			http.Error(w, fmt.Sprintf("Failed to copy chunk %d", i), http.StatusInternalServerError)
 			return
 		}
-		_ = body.Close()
+		_ = obj.Body.Close()
 	}
 
 	// Upload merged file

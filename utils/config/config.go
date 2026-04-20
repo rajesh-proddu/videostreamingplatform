@@ -67,6 +67,7 @@ type Config struct {
 
 	// CDN configuration
 	CDNDistributionID string // CloudFront distribution ID (empty = CDN invalidation disabled)
+	CDNBaseURL        string // CDN base URL for video downloads (e.g. https://d123.cloudfront.net). Empty = stream from origin.
 }
 
 // New creates a new Config instance from environment variables
@@ -104,6 +105,7 @@ func New(serviceName string) *Config {
 		RateLimitPerMin:          getEnvAsInt("RATE_LIMIT_PER_MIN", 60),    // 60 req/min default
 		RateLimitBurst:           getEnvAsInt("RATE_LIMIT_BURST", 100),     // burst of 100 default
 		CDNDistributionID:        getEnvOrDefault("CDN_DISTRIBUTION_ID", ""),
+		CDNBaseURL:               getEnvOrDefault("CDN_BASE_URL", ""),
 	}
 }
 
