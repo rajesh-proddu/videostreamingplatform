@@ -104,7 +104,10 @@ func main() {
 	videoService := bl.NewVideoService(repo, serviceOpts...)
 
 	// Initialize HTTP handlers
-	handler := handlers.NewVideoHandler(videoService)
+	handler := handlers.NewVideoHandler(videoService, cfg.CDNBaseURL)
+	if cfg.CDNBaseURL != "" {
+		logger.Printf("Playback URL decoration enabled → %s", cfg.CDNBaseURL)
+	}
 	recoClient := recommendations.NewClient(cfg.RecommendationServiceURL)
 	recoHandler := handlers.NewRecommendationHandler(recoClient)
 

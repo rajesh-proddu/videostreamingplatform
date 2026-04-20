@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/yourusername/videostreamingplatform/metadataservice/bl"
 	"github.com/yourusername/videostreamingplatform/metadataservice/models"
@@ -12,12 +13,25 @@ import (
 
 // VideoHandler handles HTTP requests for video operations
 type VideoHandler struct {
-	service *bl.VideoService
+	service    *bl.VideoService
+	cdnBaseURL string // e.g. https://d123.cloudfront.net; empty disables playback URL.
 }
 
-// NewVideoHandler creates a new video handler
-func NewVideoHandler(service *bl.VideoService) *VideoHandler {
-	return &VideoHandler{service: service}
+// NewVideoHandler creates a new video handler.
+// cdnBaseURL, when non-empty, is used to populate PlaybackURL on responses so
+// clients stream videos directly from the CDN.
+func NewVideoHandler(service *bl.VideoService, cdnBaseURL string) *VideoHandler {
+	return &VideoHandler{
+		service:    service,
+		cdnBaseURL: strings.TrimRight(cdnBaseURL, "/"),
+	}
+}
+
+func (h *VideoHandler) decorate(v *models.Video) {
+	if v == nil || h.cdnBaseURL == "" {
+		return
+	}
+	v.PlaybackURL = h.cdnBaseURL + "/videos/" + v.ID
 }
 
 // CreateVideo creates a new video metadata entry
@@ -44,6 +58,7 @@ func (h *VideoHandler) CreateVideo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.decorate(video)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(video)
@@ -67,6 +82,7 @@ func (h *VideoHandler) GetVideo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.decorate(video)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(video)
 }
@@ -98,6 +114,7 @@ func (h *VideoHandler) UpdateVideo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.decorate(video)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(video)
 }
@@ -156,6 +173,9 @@ func (h *VideoHandler) ListVideos(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	for i := range videos {
+		h.decorate(videos[i])
+	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"videos": videos,

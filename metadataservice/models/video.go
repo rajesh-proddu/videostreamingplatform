@@ -13,6 +13,9 @@ type Video struct {
 	UploadStatus   string    `json:"upload_status"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
+	// PlaybackURL is the viewer-facing URL for streaming this video. Populated
+	// by the handler from a CDN base URL; not persisted.
+	PlaybackURL string `json:"playback_url,omitempty"`
 }
 
 type Upload struct {

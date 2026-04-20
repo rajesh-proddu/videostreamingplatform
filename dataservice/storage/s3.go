@@ -15,6 +15,16 @@ type S3Client struct {
 	bucket string
 }
 
+// Object is the result of a Download.
+// ContentRange is non-empty when the response is a partial (HTTP 206) result.
+type Object struct {
+	Body          io.ReadCloser
+	ContentLength int64
+	ContentType   string
+	ContentRange  string
+	ETag          string
+}
+
 func NewS3Client(ctx context.Context) (*S3Client, error) {
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
@@ -52,16 +62,33 @@ func (s *S3Client) Upload(ctx context.Context, key string, body io.Reader, size 
 	return err
 }
 
-// Download retrieves a file from S3
-func (s *S3Client) Download(ctx context.Context, key string) (io.ReadCloser, error) {
-	result, err := s.client.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: &s.bucket,
-		Key:    &key,
-	})
+// Download retrieves a file (or byte range) from S3.
+// Pass an empty rangeHeader for a full download; otherwise pass an HTTP
+// Range header value (e.g. "bytes=0-1048575") which is forwarded to S3.
+// When S3 returns partial content, Object.ContentRange is populated.
+func (s *S3Client) Download(ctx context.Context, key, rangeHeader string) (*Object, error) {
+	in := &s3.GetObjectInput{Bucket: &s.bucket, Key: &key}
+	if rangeHeader != "" {
+		in.Range = &rangeHeader
+	}
+	result, err := s.client.GetObject(ctx, in)
 	if err != nil {
 		return nil, err
 	}
-	return result.Body, nil
+	obj := &Object{Body: result.Body}
+	if result.ContentLength != nil {
+		obj.ContentLength = *result.ContentLength
+	}
+	if result.ContentType != nil {
+		obj.ContentType = *result.ContentType
+	}
+	if result.ContentRange != nil {
+		obj.ContentRange = *result.ContentRange
+	}
+	if result.ETag != nil {
+		obj.ETag = *result.ETag
+	}
+	return obj, nil
 }
 
 // Delete removes an object from S3
