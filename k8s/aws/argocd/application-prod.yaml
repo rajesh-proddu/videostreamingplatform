@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: videostreamingplatform-prod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/rajesh-proddu/videostreamingplatform.git
+    targetRevision: main
+    path: k8s/aws/helm/videostreamingplatform
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-prod.yaml
+      parameters:
+        - name: rdsCredentials.password
+          value: $RDS_PASSWORD
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: videostreamingplatform
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

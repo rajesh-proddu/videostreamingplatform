@@ -17,3 +17,4 @@ opensearch_volume_size    = 10
 cloudfront_price_class    = "PriceClass_100"
 cloudfront_default_ttl    = 3600
 cloudfront_max_ttl        = 86400
+redis_node_type           = "cache.t3.micro"

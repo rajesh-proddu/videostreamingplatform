@@ -1,0 +1,22 @@
+global:
+  environment: dev
+
+metadataService:
+  replicas: 2
+  irsa:
+    roleArn: arn:aws:iam::905772075923:role/metadata-service-irsa-dev
+
+dataService:
+  replicas: 2
+  irsa:
+    roleArn: arn:aws:iam::905772075923:role/data-service-irsa-dev
+
+config:
+  s3:
+    bucket: videostreamingplatform-videos-dev-905772075923
+  redis:
+    addr: vsp-redis-dev.s1jv3j.ng.0001.use1.cache.amazonaws.com:6379
+
+rdsCredentials:
+  host: videostreamingplatform-dev.ck9sg06q6k4y.us-east-1.rds.amazonaws.com
+  username: admin

@@ -1,0 +1,3 @@
+{{- if .Values.observability.enabled }}
+{{ .Files.Get "files/grafana-dashboards-cm.yaml" }}
+{{- end }}

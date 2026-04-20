@@ -83,11 +83,6 @@ output "eks_oidc_provider_arn" {
   value       = aws_iam_openid_connect_provider.eks.arn
 }
 
-output "opensearch_endpoint" {
-  description = "OpenSearch domain endpoint"
-  value       = "https://${aws_opensearch_domain.main.endpoint}"
-}
-
 output "opensearch_irsa_role_arn" {
   description = "IRSA role ARN for OpenSearch access"
   value       = aws_iam_role.opensearch_irsa.arn
@@ -101,4 +96,9 @@ output "cloudfront_distribution_id" {
 output "cloudfront_domain_name" {
   description = "CloudFront domain name for video downloads"
   value       = aws_cloudfront_distribution.videos.domain_name
+}
+
+output "redis_endpoint" {
+  description = "ElastiCache Redis primary endpoint"
+  value       = "${aws_elasticache_replication_group.main.primary_endpoint_address}:6379"
 }

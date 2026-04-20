@@ -1,0 +1,31 @@
+global:
+  environment: prod
+
+metadataService:
+  replicas: 3
+  hpa:
+    minReplicas: 3
+  irsa:
+    roleArn: arn:aws:iam::905772075923:role/metadata-service-irsa-prod
+
+dataService:
+  replicas: 3
+  hpa:
+    minReplicas: 3
+  irsa:
+    roleArn: arn:aws:iam::905772075923:role/data-service-irsa-prod
+
+config:
+  mysql:
+    maxConn: "200"
+  s3:
+    bucket: videostreamingplatform-videos-prod-905772075923
+  redis:
+    addr: ""  # Set after prod ElastiCache is provisioned
+  rateLimit:
+    perMin: "10000"
+    burst: "1000"
+
+rdsCredentials:
+  host: ""  # Set after prod RDS is provisioned
+  username: admin

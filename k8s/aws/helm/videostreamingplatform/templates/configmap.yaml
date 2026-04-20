@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: videostreamingplatform
+data:
+  ENVIRONMENT: aws
+  AWS_REGION: {{ .Values.global.awsRegion }}
+  LOG_LEVEL: info
+  MYSQL_PORT: {{ .Values.config.mysql.port | quote }}
+  MYSQL_DATABASE: {{ .Values.config.mysql.database }}
+  MYSQL_MAX_CONN: {{ .Values.config.mysql.maxConn | quote }}
+  S3_BUCKET: {{ .Values.config.s3.bucket }}
+  REDIS_ADDR: {{ .Values.config.redis.addr }}
+  CACHE_TTL_GET_VIDEO: {{ .Values.config.cache.ttlGetVideo | quote }}
+  CACHE_TTL_LIST_VIDEOS: {{ .Values.config.cache.ttlListVideos | quote }}
+  RATE_LIMIT_PER_MIN: {{ .Values.config.rateLimit.perMin | quote }}
+  RATE_LIMIT_BURST: {{ .Values.config.rateLimit.burst | quote }}
+  UPLOAD_STORE: {{ .Values.config.uploadStore }}
+  KAFKA_BROKERS: {{ .Values.config.kafka.brokers }}
+  KAFKA_VIDEO_TOPIC: {{ .Values.config.kafka.videoTopic }}
+  KAFKA_WATCH_TOPIC: {{ .Values.config.kafka.watchTopic }}
+  ELASTICSEARCH_URL: {{ .Values.config.elasticsearch.url }}
+  RECOMMENDATION_SERVICE_URL: {{ .Values.config.recommendationServiceUrl }}

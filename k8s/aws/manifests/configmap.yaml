@@ -5,19 +5,32 @@ metadata:
   namespace: videostreamingplatform
 data:
   ENVIRONMENT: aws
-  AWS_REGION: us-east-1
+  AWS_REGION: ${AWS_REGION}
   S3_BUCKET: ${S3_BUCKET}
   ELASTICSEARCH_URL: ${OPENSEARCH_ENDPOINT}
   LOG_LEVEL: info
 
-  # Redis cache (set REDIS_ADDR to ElastiCache endpoint or in-cluster Redis)
+  # MySQL (host/user/password come from rds-credentials secret)
+  MYSQL_PORT: "3306"
+  MYSQL_DATABASE: videoplatform
+  MYSQL_MAX_CONN: "100"
+
+  # Redis cache
   REDIS_ADDR: ${REDIS_ENDPOINT}
   CACHE_TTL_GET_VIDEO: "300"
   CACHE_TTL_LIST_VIDEOS: "60"
 
   # Rate limiting
-  RATE_LIMIT_PER_MIN: "200"
-  RATE_LIMIT_BURST: "300"
+  RATE_LIMIT_PER_MIN: "3000"
+  RATE_LIMIT_BURST: "500"
 
-  # MySQL
-  MYSQL_MAX_CONN: "50"
+  # Dataservice
+  UPLOAD_STORE: mysql
+
+  # Kafka (empty = disabled, set via secret if MSK is provisioned)
+  KAFKA_BROKERS: ${KAFKA_BROKERS}
+  KAFKA_VIDEO_TOPIC: video-events
+  KAFKA_WATCH_TOPIC: watch-events
+
+  # Recommendation service (empty = disabled)
+  RECOMMENDATION_SERVICE_URL: ""

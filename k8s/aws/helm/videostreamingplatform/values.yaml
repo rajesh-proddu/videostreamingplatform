@@ -1,0 +1,79 @@
+global:
+  environment: dev
+  awsRegion: us-east-1
+  awsAccountId: "905772075923"
+
+image:
+  registry: ghcr.io/rajesh-proddu/videostreamingplatform
+  tag: latest
+  pullPolicy: Always
+
+metadataService:
+  replicas: 2
+  port: 8080
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  hpa:
+    minReplicas: 2
+    maxReplicas: 10
+    cpuTarget: 70
+    memoryTarget: 80
+  irsa:
+    roleArn: ""
+
+dataService:
+  replicas: 2
+  port: 8081
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  hpa:
+    minReplicas: 2
+    maxReplicas: 10
+    cpuTarget: 70
+    memoryTarget: 80
+  irsa:
+    roleArn: ""
+
+config:
+  mysql:
+    port: "3306"
+    database: videoplatform
+    maxConn: "100"
+  s3:
+    bucket: ""
+  redis:
+    addr: ""
+  cache:
+    ttlGetVideo: "300"
+    ttlListVideos: "60"
+  rateLimit:
+    perMin: "3000"
+    burst: "500"
+  kafka:
+    brokers: ""
+    videoTopic: video-events
+    watchTopic: watch-events
+  elasticsearch:
+    url: ""
+  uploadStore: mysql
+  recommendationServiceUrl: ""
+
+rdsCredentials:
+  host: ""
+  username: admin
+  password: ""
+
+observability:
+  enabled: true
+  jaeger:
+    endpoint: "jaeger.observability.svc.cluster.local:4318"
