@@ -104,6 +104,9 @@ deploy_manifests() {
   kubectl apply -f "$K8S_LOCAL/kafka.yaml"
   kubectl apply -f "$K8S_LOCAL/cdn-proxy.yaml"
 
+  # LocalStack (Glue + S3 for Iceberg)
+  kubectl apply -f "$K8S_LOCAL/localstack.yaml"
+
   # Observability
   kubectl apply -f "$K8S_LOCAL/observability.yaml"
   create_grafana_dashboards_configmap
@@ -138,6 +141,26 @@ deploy_manifests() {
   kubectl wait --namespace="$NAMESPACE" \
     --for=condition=ready pod -l app=data-service \
     --timeout=120s || warn "data-service not ready yet"
+
+  # Iceberg (REST catalog + MinIO bucket init)
+  log "Waiting for Iceberg REST catalog to be ready..."
+  kubectl wait --namespace=infra \
+    --for=condition=ready pod -l app=iceberg-rest-catalog \
+    --timeout=120s || warn "Iceberg REST catalog not ready yet"
+
+  log "Waiting for Iceberg MinIO bucket init..."
+  kubectl wait --namespace=infra \
+    --for=condition=complete job/iceberg-minio-init \
+    --timeout=120s || warn "Iceberg MinIO init not complete yet"
+
+  # Analytics (watch-history-consumer + catalog-admin)
+  log "Deploying analytics stack..."
+  kubectl apply -f "$K8S_LOCAL/analytics.yaml"
+
+  log "Waiting for catalog-init job..."
+  kubectl wait --namespace=analytics \
+    --for=condition=complete job/catalog-init \
+    --timeout=120s || warn "catalog-init not complete yet"
 }
 
 show_status() {

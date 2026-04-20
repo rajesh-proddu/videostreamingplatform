@@ -19,3 +19,10 @@ metadata:
   name: observability
   labels:
     name: observability
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: analytics
+  labels:
+    name: analytics

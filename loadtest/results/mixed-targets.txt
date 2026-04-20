@@ -1,0 +1,32 @@
+GET http://localhost:8080/videos?limit=10&offset=0
+GET http://localhost:8080/videos/2d7aa22e-8980-42bb-8176-738108004183
+GET http://localhost:8080/videos?limit=10&offset=0
+GET http://localhost:8080/videos/c401b18a-f6ce-4dae-aa83-0540e7377fdf
+GET http://localhost:8080/videos?limit=10&offset=0
+GET http://localhost:8080/videos/997e0078-5edc-427e-9ea9-3850cc389635
+GET http://localhost:8080/videos?limit=10&offset=0
+GET http://localhost:8080/videos/dbc221a6-b295-4719-88d3-243573dc049f
+GET http://localhost:8080/videos?limit=10&offset=0
+GET http://localhost:8080/videos/3934877a-8963-4ded-8aaa-e1816fb07180
+GET http://localhost:8080/videos?limit=10&offset=0
+GET http://localhost:8080/videos/6759c0f6-1766-48fd-9cbd-6de249f9ed50
+GET http://localhost:8080/videos?limit=10&offset=0
+GET http://localhost:8080/videos/5cd05015-950d-4c48-b6c2-25617864570c
+GET http://localhost:8080/videos?limit=10&offset=0
+GET http://localhost:8080/videos/3d31d484-f308-4eda-b5f6-77f1ec5e4b5a
+POST http://localhost:8080/videos
+Content-Type: application/json
+@loadtest/results/create-body.json
+
+POST http://localhost:8080/videos
+Content-Type: application/json
+@loadtest/results/create-body.json
+
+POST http://localhost:8080/videos
+Content-Type: application/json
+@loadtest/results/create-body.json
+
+POST http://localhost:8080/videos
+Content-Type: application/json
+@loadtest/results/create-body.json
+
