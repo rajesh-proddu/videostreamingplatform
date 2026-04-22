@@ -61,7 +61,7 @@ func setupTestServer(t *testing.T) *httptest.Server {
 	store := newMockVideoStore()
 	repo := dl.NewVideoRepository(store)
 	svc := bl.NewVideoService(repo)
-	h := handlers.NewVideoHandler(svc)
+	h := handlers.NewVideoHandler(svc, "")
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /videos", h.CreateVideo)
