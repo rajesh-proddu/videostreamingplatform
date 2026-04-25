@@ -30,6 +30,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Fail fast if any required secret is empty. Without this, envsubst silently
+      # substitutes "" into ConfigMap/Secret/SA manifests and kubectl apply wipes
+      # cluster state — restorable only by manual patches.
+      - name: Preflight check — required secrets and inputs
+        env:
+          AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+          S3_VIDEOS_BUCKET: ${{ secrets.S3_VIDEOS_BUCKET }}
+          OPENSEARCH_ENDPOINT: ${{ secrets.OPENSEARCH_ENDPOINT }}
+          REDIS_ENDPOINT: ${{ secrets.REDIS_ENDPOINT }}
+          KAFKA_BROKERS: ${{ secrets.KAFKA_BROKERS }}
+          IRSA_DATA_ROLE_ARN: ${{ secrets.IRSA_DATA_ROLE_ARN }}
+          IRSA_METADATA_ROLE_ARN: ${{ secrets.IRSA_METADATA_ROLE_ARN }}
+          RDS_ENDPOINT: ${{ secrets.RDS_ENDPOINT }}
+          RDS_MASTER_USER_SECRET_ARN: ${{ secrets.RDS_MASTER_USER_SECRET_ARN }}
+          CDN_DISTRIBUTION_ID: ${{ secrets.CDN_DISTRIBUTION_ID }}
+          INPUT_ENVIRONMENT: ${{ github.event.inputs.environment }}
+          INPUT_IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+        run: |
+          missing=()
+          for var in AWS_ROLE_ARN S3_VIDEOS_BUCKET OPENSEARCH_ENDPOINT REDIS_ENDPOINT \
+                     KAFKA_BROKERS IRSA_DATA_ROLE_ARN IRSA_METADATA_ROLE_ARN \
+                     RDS_ENDPOINT RDS_MASTER_USER_SECRET_ARN CDN_DISTRIBUTION_ID \
+                     INPUT_ENVIRONMENT INPUT_IMAGE_TAG; do
+            if [ -z "${!var}" ]; then
+              missing+=("$var")
+            fi
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Deploy aborted — empty secrets/inputs would corrupt cluster state on apply:"
+            printf '  - %s\n' "${missing[@]}"
+            echo "Set missing repo secrets at: Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+          echo "All required secrets and inputs are set."
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
