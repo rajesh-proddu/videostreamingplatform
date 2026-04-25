@@ -3,13 +3,30 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/yourusername/videostreamingplatform/metadataservice/bl"
+	"github.com/yourusername/videostreamingplatform/metadataservice/dl"
 	"github.com/yourusername/videostreamingplatform/metadataservice/models"
 )
+
+// statusForServiceError maps known service-layer errors to HTTP status codes.
+// Validation errors map to 400, not-found to 404, anything else to 500.
+func statusForServiceError(err error) int {
+	switch {
+	case errors.Is(err, bl.ErrInvalidTitle),
+		errors.Is(err, bl.ErrInvalidSize),
+		errors.Is(err, bl.ErrInvalidVideoID):
+		return http.StatusBadRequest
+	case errors.Is(err, dl.ErrVideoNotFound):
+		return http.StatusNotFound
+	default:
+		return http.StatusInternalServerError
+	}
+}
 
 // VideoHandler handles HTTP requests for video operations
 type VideoHandler struct {
@@ -54,7 +71,7 @@ func (h *VideoHandler) CreateVideo(w http.ResponseWriter, r *http.Request) {
 
 	video, err := h.service.CreateVideo(r.Context(), &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), statusForServiceError(err))
 		return
 	}
 
@@ -78,7 +95,7 @@ func (h *VideoHandler) GetVideo(w http.ResponseWriter, r *http.Request) {
 
 	video, err := h.service.GetVideo(r.Context(), id)
 	if err != nil {
-		http.Error(w, "Video not found", http.StatusNotFound)
+		http.Error(w, err.Error(), statusForServiceError(err))
 		return
 	}
 
@@ -110,7 +127,7 @@ func (h *VideoHandler) UpdateVideo(w http.ResponseWriter, r *http.Request) {
 
 	video, err := h.service.UpdateVideo(r.Context(), id, &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), statusForServiceError(err))
 		return
 	}
 
@@ -131,7 +148,7 @@ func (h *VideoHandler) DeleteVideo(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
 	if err := h.service.DeleteVideo(r.Context(), id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), statusForServiceError(err))
 		return
 	}
 
