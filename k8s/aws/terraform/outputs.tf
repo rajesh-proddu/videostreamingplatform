@@ -38,6 +38,11 @@ output "rds_database_name" {
   value       = aws_db_instance.main.db_name
 }
 
+output "rds_master_user_secret_arn" {
+  description = "ARN of the AWS-managed Secrets Manager secret holding the RDS master password"
+  value       = aws_db_instance.main.master_user_secret[0].secret_arn
+}
+
 output "s3_videos_bucket" {
   description = "S3 bucket for video storage"
   value       = aws_s3_bucket.videos.bucket

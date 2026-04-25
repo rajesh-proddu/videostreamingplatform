@@ -59,12 +59,17 @@ jobs:
           # Apply namespace first
           kubectl apply -f k8s/aws/manifests/namespace.yaml
 
-          # Create rds-credentials secret (values from Terraform or GitHub secrets)
+          # Fetch RDS master password from AWS-managed Secrets Manager secret
+          RDS_PASSWORD=$(aws secretsmanager get-secret-value \
+            --secret-id "${{ secrets.RDS_MASTER_USER_SECRET_ARN }}" \
+            --query SecretString --output text | jq -r .password)
+
+          # Create rds-credentials secret (host from GitHub secrets, password from Secrets Manager)
           kubectl create secret generic rds-credentials \
             --namespace videostreamingplatform \
             --from-literal=host="${{ secrets.RDS_ENDPOINT }}" \
             --from-literal=username="admin" \
-            --from-literal=password="${{ secrets.DATABASE_PASSWORD }}" \
+            --from-literal=password="${RDS_PASSWORD}" \
             --from-literal=database="videoplatform" \
             --dry-run=client -o yaml | kubectl apply -f -
 

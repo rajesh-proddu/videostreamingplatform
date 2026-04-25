@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-init
+  namespace: videostreamingplatform
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: db-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mysql-client
+          image: mysql:8.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "applying schema to $MYSQL_HOST"
+              mysql -h "$MYSQL_HOST" -P "$MYSQL_PORT" \
+                    -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" \
+                    "$MYSQL_DATABASE" < /schema/init-db.sql
+              echo "done"
+          env:
+            - name: MYSQL_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: rds-credentials
+                  key: host
+            - name: MYSQL_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: rds-credentials
+                  key: port
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: rds-credentials
+                  key: username
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rds-credentials
+                  key: password
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: rds-credentials
+                  key: database
+          volumeMounts:
+            - name: schema
+              mountPath: /schema
+      volumes:
+        - name: schema
+          configMap:
+            name: db-init-schema

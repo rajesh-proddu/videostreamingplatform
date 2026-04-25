@@ -54,7 +54,7 @@ resource "aws_eks_cluster" "main" {
 
   vpc_config {
     subnet_ids              = concat(aws_subnet.private[*].id, aws_subnet.public[*].id)
-    security_group_ids         = [aws_security_group.eks_cluster.id]
+    security_group_ids      = [aws_security_group.eks_cluster.id]
     endpoint_private_access = true
     endpoint_public_access  = true
   }
@@ -288,4 +288,110 @@ resource "aws_iam_role_policy" "data_service_s3" {
       }
     ]
   })
+}
+
+# ─── EBS CSI driver (required for PVC dynamic provisioning on EKS >=1.23) ──
+
+resource "aws_iam_role" "ebs_csi_irsa" {
+  name = "ebs-csi-irsa-${var.environment}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Federated = local.oidc_provider_arn }
+      Action    = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "${local.oidc_provider}:aud" = "sts.amazonaws.com"
+          "${local.oidc_provider}:sub" = "system:serviceaccount:kube-system:ebs-csi-controller-sa"
+        }
+      }
+    }]
+  })
+
+  tags = { Name = "ebs-csi-irsa" }
+}
+
+resource "aws_iam_role_policy_attachment" "ebs_csi_managed" {
+  role       = aws_iam_role.ebs_csi_irsa.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+}
+
+resource "aws_eks_addon" "ebs_csi" {
+  cluster_name                = aws_eks_cluster.main.name
+  addon_name                  = "aws-ebs-csi-driver"
+  service_account_role_arn    = aws_iam_role.ebs_csi_irsa.arn
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+
+  depends_on = [
+    aws_eks_node_group.main,
+    aws_iam_role_policy_attachment.ebs_csi_managed,
+  ]
+}
+
+# ─── VPC CNI addon with prefix delegation ──────────────────────────────────
+# Raises per-node pod cap on small instances (e.g. t3.micro: 4 -> ~110)
+# by assigning /28 IPv4 prefixes to ENIs instead of single secondary IPs.
+# Required when running >4 workload pods/node on t3.micro free-tier nodes.
+
+resource "aws_eks_addon" "vpc_cni" {
+  cluster_name                = aws_eks_cluster.main.name
+  addon_name                  = "vpc-cni"
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+
+  configuration_values = jsonencode({
+    env = {
+      ENABLE_PREFIX_DELEGATION = "true"
+      WARM_PREFIX_TARGET       = "1"
+    }
+  })
+
+  depends_on = [aws_eks_node_group.main]
+}
+
+# ─── aws-auth ConfigMap ─────────────────────────────────────────────────────
+# Maps IAM principals to Kubernetes RBAC groups. The node role mapping is
+# required for worker nodes to join; additional users/roles listed here gain
+# kubectl access via `aws eks update-kubeconfig`.
+
+variable "github_actions_deploy_role_name" {
+  description = "Name (not ARN) of the IAM role assumed by GitHub Actions for cluster deploys. Must already exist; this module only adds it to aws-auth."
+  type        = string
+  default     = "github-actions-deploy"
+}
+
+resource "kubernetes_config_map_v1_data" "aws_auth" {
+  metadata {
+    name      = "aws-auth"
+    namespace = "kube-system"
+  }
+
+  data = {
+    mapRoles = yamlencode([
+      {
+        rolearn  = aws_iam_role.eks_node_role.arn
+        username = "system:node:{{EC2PrivateDNSName}}"
+        groups   = ["system:bootstrappers", "system:nodes"]
+      },
+      {
+        rolearn  = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.github_actions_deploy_role_name}"
+        username = "github-actions-deploy"
+        groups   = ["system:masters"]
+      },
+    ])
+    mapUsers = yamlencode([
+      {
+        userarn  = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        username = "root"
+        groups   = ["system:masters"]
+      },
+    ])
+  }
+
+  force = true
+
+  depends_on = [aws_eks_node_group.main]
 }

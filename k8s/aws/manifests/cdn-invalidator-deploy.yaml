@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
         - name: cdn-invalidator
-          image: ${CDN_INVALIDATOR_IMAGE}
+          image: ghcr.io/rajesh-proddu/videostreamingplatform/cdn-invalidator:latest
+          imagePullPolicy: Always
           envFrom:
             - configMapRef:
                 name: app-config

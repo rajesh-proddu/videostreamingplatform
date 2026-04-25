@@ -40,9 +40,10 @@ resource "aws_db_instance" "main" {
   max_allocated_storage   = 100
   storage_type            = "gp2"
   db_name                 = "videoplatform"
-  username                = var.rds_master_username
-  password                = var.rds_master_password
-  db_subnet_group_name    = aws_db_subnet_group.main.name
+  username                    = var.rds_master_username
+  manage_master_user_password = true
+  master_user_secret_kms_key_id = aws_kms_key.rds.arn
+  db_subnet_group_name        = aws_db_subnet_group.main.name
   vpc_security_group_ids  = [aws_security_group.rds.id]
   backup_retention_period = var.environment == "dev" ? 1 : 7
   skip_final_snapshot     = var.environment == "dev" ? true : false

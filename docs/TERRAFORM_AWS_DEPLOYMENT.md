@@ -128,8 +128,8 @@ AWS_ROLE_ARN                    = arn:aws:iam::ACCOUNT_ID:role/GitHubActionsRole
 TERRAFORM_STATE_BUCKET          = videostreamingplatform-terraform-state
 TERRAFORM_LOCK_TABLE            = terraform-locks
 DATABASE_HOST                   = your-rds-endpoint.rds.amazonaws.com
-DATABASE_PASSWORD               = your-db-password
 SLACK_WEBHOOK                   = https://hooks.slack.com/...
+# RDS password: AWS-managed in Secrets Manager (no secret needed here)
 ```
 
 ### 3. Set Environment Protection Rules

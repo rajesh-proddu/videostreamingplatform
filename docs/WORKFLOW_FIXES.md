@@ -115,8 +115,10 @@ For full functionality, set these GitHub Secrets (under Settings → Secrets):
 | `TERRAFORM_STATE_BUCKET` | ✅ Yes | S3 bucket for Terraform state |
 | `TERRAFORM_LOCK_TABLE` | ✅ Yes | DynamoDB table for state locking |
 | `DATABASE_HOST` | ✅ Yes | RDS endpoint |
-| `DATABASE_PASSWORD` | ✅ Yes | RDS master password |
+| `RDS_MASTER_USER_SECRET_ARN` | ✅ Yes (kubectl workflow only) | Secrets Manager ARN for RDS password |
 | `SLACK_WEBHOOK` | ❌ No | Slack notifications (optional) |
+
+> **Note:** `DATABASE_PASSWORD` is no longer required. The RDS master password is now AWS-managed via Secrets Manager and fetched at deploy time using `RDS_MASTER_USER_SECRET_ARN`.
 
 ---
 

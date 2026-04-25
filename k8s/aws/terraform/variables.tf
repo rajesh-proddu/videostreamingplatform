@@ -68,12 +68,6 @@ variable "rds_master_username" {
   sensitive   = true
 }
 
-variable "rds_master_password" {
-  description = "RDS master password"
-  type        = string
-  sensitive   = true
-}
-
 variable "rds_instance_class" {
   description = "RDS instance class"
   type        = string

@@ -63,7 +63,6 @@ jobs:
           terraform plan \
             -var-file="terraform.${{ github.event.inputs.environment }}.tfvars" \
             -var="container_image_tag=${{ github.event.inputs.image_tag }}" \
-            -var="rds_master_password=${{ secrets.DATABASE_PASSWORD }}" \
             -out=tfplan
       
       - name: Terraform Apply
@@ -79,7 +78,6 @@ jobs:
           terraform destroy \
             -var-file="terraform.${{ github.event.inputs.environment }}.tfvars" \
             -var="container_image_tag=${{ github.event.inputs.image_tag }}" \
-            -var="rds_master_password=${{ secrets.DATABASE_PASSWORD }}" \
             -auto-approve
       
       - name: Get deployment info
@@ -92,12 +90,14 @@ jobs:
           EKS_ENDPOINT=$(terraform output -raw eks_cluster_endpoint 2>/dev/null || echo "")
           RDS_HOST=$(terraform output -raw rds_address 2>/dev/null || echo "")
           RDS_DB_NAME=$(terraform output -raw rds_database_name 2>/dev/null || echo "videoplatform")
+          RDS_SECRET_ARN=$(terraform output -raw rds_master_user_secret_arn 2>/dev/null || echo "")
           S3_BUCKET=$(terraform output -raw s3_videos_bucket 2>/dev/null || echo "")
           IRSA_META_ARN=$(terraform output -raw metadata_service_irsa_role_arn 2>/dev/null || echo "")
           IRSA_DATA_ARN=$(terraform output -raw data_service_irsa_role_arn 2>/dev/null || echo "")
           echo "eks_name=${EKS_NAME}" >> "$GITHUB_OUTPUT"
           echo "rds_host=${RDS_HOST}" >> "$GITHUB_OUTPUT"
           echo "rds_db_name=${RDS_DB_NAME}" >> "$GITHUB_OUTPUT"
+          echo "rds_secret_arn=${RDS_SECRET_ARN}" >> "$GITHUB_OUTPUT"
           echo "s3_bucket=${S3_BUCKET}" >> "$GITHUB_OUTPUT"
           echo "irsa_meta_arn=${IRSA_META_ARN}" >> "$GITHUB_OUTPUT"
           echo "irsa_data_arn=${IRSA_DATA_ARN}" >> "$GITHUB_OUTPUT"
@@ -115,12 +115,17 @@ jobs:
           # Create namespace
           kubectl apply -f k8s/aws/manifests/namespace.yaml
 
+          # Fetch RDS master password from AWS-managed Secrets Manager secret
+          RDS_PASSWORD=$(aws secretsmanager get-secret-value \
+            --secret-id "${{ steps.tf-outputs.outputs.rds_secret_arn }}" \
+            --query SecretString --output text | jq -r .password)
+
           # Create rds-credentials secret from Terraform outputs
           kubectl create secret generic rds-credentials \
             --namespace videostreamingplatform \
             --from-literal=host="${{ steps.tf-outputs.outputs.rds_host }}" \
             --from-literal=username="admin" \
-            --from-literal=password="${{ secrets.DATABASE_PASSWORD }}" \
+            --from-literal=password="${RDS_PASSWORD}" \
             --from-literal=database="${{ steps.tf-outputs.outputs.rds_db_name }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
@@ -158,7 +163,7 @@ jobs:
             --namespace videostreamingplatform \
             --image=mysql:8.0 \
             -- mysql -h "${{ steps.tf-outputs.outputs.rds_host }}" \
-            -u admin -p'${{ secrets.DATABASE_PASSWORD }}' \
+            -u admin -p"${RDS_PASSWORD}" \
             ${{ steps.tf-outputs.outputs.rds_db_name }} \
             -e "$(cat scripts/init-db.sql)" || true
 

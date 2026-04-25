@@ -28,7 +28,8 @@ GitHub Actions → Deploy to AWS EKS (Terraform) → Select env & image tag
 **Prerequisites:**
 - S3 bucket for Terraform state
 - DynamoDB table for state locking
-- GitHub Secrets: AWS_ROLE_ARN, TERRAFORM_STATE_BUCKET, TERRAFORM_LOCK_TABLE, DATABASE_HOST, DATABASE_PASSWORD
+- GitHub Secrets: AWS_ROLE_ARN, TERRAFORM_STATE_BUCKET, TERRAFORM_LOCK_TABLE, DATABASE_HOST
+- RDS master password is now AWS-managed (Secrets Manager) — fetched at deploy time, no GitHub secret needed
 
 **Deployment time:** 15-20 minutes
 
@@ -59,7 +60,7 @@ GitHub Actions → Deploy to AWS EKS (kubectl) → Select env & image tag
 **Prerequisites:**
 - EKS cluster already created
 - Kubernetes manifests in k8s/aws/manifests/
-- GitHub Secrets: AWS_ROLE_ARN, DATABASE_PASSWORD
+- GitHub Secrets: AWS_ROLE_ARN, RDS_MASTER_USER_SECRET_ARN, RDS_ENDPOINT, S3_VIDEOS_BUCKET, REDIS_ENDPOINT, OPENSEARCH_ENDPOINT, IRSA_METADATA_ROLE_ARN, IRSA_DATA_ROLE_ARN, CDN_DISTRIBUTION_ID, KAFKA_BROKERS
 
 **Deployment time:** 2-5 minutes
 
@@ -125,7 +126,7 @@ aws dynamodb create-table \
 #    - TERRAFORM_STATE_BUCKET
 #    - TERRAFORM_LOCK_TABLE
 #    - DATABASE_HOST
-#    - DATABASE_PASSWORD
+#    (RDS password is now AWS-managed via Secrets Manager — fetched at deploy time)
 ```
 
 ### kubectl Setup (Requires Existing Cluster)
@@ -134,7 +135,8 @@ aws dynamodb create-table \
 # Assumes EKS cluster already exists
 # Just add GitHub Secrets:
 #   - AWS_ROLE_ARN
-#   - DATABASE_PASSWORD
+#   - RDS_MASTER_USER_SECRET_ARN  (from terraform output rds_master_user_secret_arn)
+#   - RDS_ENDPOINT
 ```
 
 ---
@@ -183,19 +185,27 @@ Q: Is this production first-time deploy?
 
 ### Terraform Workflow
 ```
-AWS_ROLE_ARN              ✅ Required
-TERRAFORM_STATE_BUCKET    ✅ Required
-TERRAFORM_LOCK_TABLE      ✅ Required
-DATABASE_HOST             ✅ Required
-DATABASE_PASSWORD         ✅ Required
-SLACK_WEBHOOK             ⚠️ Optional
+AWS_ROLE_ARN                  ✅ Required
+TERRAFORM_STATE_BUCKET        ✅ Required
+TERRAFORM_LOCK_TABLE          ✅ Required
+DATABASE_HOST                 ✅ Required
+SLACK_WEBHOOK                 ⚠️ Optional
+(RDS password: AWS-managed in Secrets Manager — no GitHub secret needed)
 ```
 
 ### kubectl Workflow
 ```
-AWS_ROLE_ARN              ✅ Required
-DATABASE_PASSWORD         ⚠️ Optional
-SLACK_WEBHOOK             ⚠️ Optional
+AWS_ROLE_ARN                  ✅ Required
+RDS_MASTER_USER_SECRET_ARN    ✅ Required (from `terraform output rds_master_user_secret_arn`)
+RDS_ENDPOINT                  ✅ Required
+S3_VIDEOS_BUCKET              ✅ Required
+REDIS_ENDPOINT                ✅ Required
+OPENSEARCH_ENDPOINT           ✅ Required
+IRSA_METADATA_ROLE_ARN        ✅ Required
+IRSA_DATA_ROLE_ARN            ✅ Required
+CDN_DISTRIBUTION_ID           ✅ Required
+KAFKA_BROKERS                 ✅ Required
+SLACK_WEBHOOK                 ⚠️ Optional
 ```
 
 ---

@@ -229,15 +229,15 @@ AWS_ROLE_ARN                    # IAM role for GitHub
 TERRAFORM_STATE_BUCKET          # S3 bucket for state
 TERRAFORM_LOCK_TABLE            # DynamoDB for locking
 DATABASE_HOST                   # RDS endpoint
-DATABASE_PASSWORD               # RDS password
 SLACK_WEBHOOK                   # Optional notifications
+# RDS password: AWS-managed in Secrets Manager — no GitHub secret needed
 ```
 
 ### For kubectl Workflow
 
 ```
 AWS_ROLE_ARN                    # IAM role for GitHub
-DATABASE_PASSWORD               # For env vars (optional)
+RDS_MASTER_USER_SECRET_ARN      # Secrets Manager ARN (from terraform output)
 SLACK_WEBHOOK                   # Optional notifications
 ```
 

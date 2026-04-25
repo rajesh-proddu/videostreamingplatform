@@ -56,6 +56,21 @@ spec:
           env:
             - name: HTTP_PORT
               value: "8081"
+            - name: MYSQL_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: rds-credentials
+                  key: host
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: rds-credentials
+                  key: username
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rds-credentials
+                  key: password
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: "jaeger.observability.svc.cluster.local:4318"
           resources:

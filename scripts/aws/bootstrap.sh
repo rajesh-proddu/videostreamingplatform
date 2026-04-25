@@ -324,6 +324,15 @@ EOF
         "logs:TagResource", "logs:ListTagsForResource"
       ],
       "Resource": "*"
+    },
+    {
+      "Sid": "SecretsManagerRDSManagedPassword",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+      ],
+      "Resource": "arn:aws:secretsmanager:*:*:secret:rds!db-*"
     }
   ]
 }
@@ -369,7 +378,10 @@ echo ""
 echo "  AWS_ROLE_ARN              = ${DEPLOY_ROLE_ARN:-<create role first>}"
 echo "  TERRAFORM_STATE_BUCKET    = ${STATE_BUCKET}"
 echo "  TERRAFORM_LOCK_TABLE      = ${LOCK_TABLE}"
-echo "  DATABASE_PASSWORD          = <your RDS master password>"
+echo ""
+echo "  After first terraform apply, also set (for deploy-aws-k8s.yml):"
+echo "  RDS_MASTER_USER_SECRET_ARN = <from: terraform output rds_master_user_secret_arn>"
+echo "  (RDS master password is now AWS-managed via Secrets Manager — no separate secret needed)"
 echo ""
 echo "─── Optional Secrets ────────────────────────────────────────"
 echo ""
