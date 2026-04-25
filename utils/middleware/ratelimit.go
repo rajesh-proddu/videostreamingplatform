@@ -139,9 +139,23 @@ func (rl *RateLimiter) cleanup() {
 	}
 }
 
+// probeAndOpsPaths are infrastructure endpoints (kubelet probes, Prometheus
+// scrapes) that must never be rate-limited — otherwise a brief traffic burst
+// makes liveness probes fail with 429 and the kubelet restarts the pod.
+var probeAndOpsPaths = map[string]struct{}{
+	"/health":  {},
+	"/livez":   {},
+	"/readyz":  {},
+	"/metrics": {},
+}
+
 // Middleware returns an HTTP middleware that rate-limits by client IP.
 func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, skip := probeAndOpsPaths[r.URL.Path]; skip {
+			next.ServeHTTP(w, r)
+			return
+		}
 		ip := clientIP(r)
 		allowed, remaining, retryAfter := rl.allow(r.Context(), ip)
 

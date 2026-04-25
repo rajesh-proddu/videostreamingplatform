@@ -106,6 +106,26 @@ func TestRateLimiter_SetsRateLimitHeaders(t *testing.T) {
 	}
 }
 
+func TestRateLimiter_SkipsProbeAndOpsPaths(t *testing.T) {
+	t.Parallel()
+
+	rl := NewRateLimiter(nil, 1, time.Minute, 1)
+	handler := rl.Middleware(okHandler())
+
+	for _, path := range []string{"/health", "/livez", "/readyz", "/metrics"} {
+		for i := 0; i < 5; i++ {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			req.RemoteAddr = "10.0.0.99:1234"
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("%s request %d: status = %d, want 200 (probe paths must bypass rate limit)", path, i, rec.Code)
+			}
+		}
+	}
+}
+
 func TestClientIP_XForwardedFor(t *testing.T) {
 	t.Parallel()
 
