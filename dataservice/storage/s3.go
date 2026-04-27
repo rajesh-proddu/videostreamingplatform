@@ -2,13 +2,19 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
+
+// ErrObjectNotFound is returned when a Download targets a key that does not
+// exist in the bucket. Handlers map this to 404.
+var ErrObjectNotFound = errors.New("object not found")
 
 type S3Client struct {
 	client *s3.Client
@@ -73,6 +79,10 @@ func (s *S3Client) Download(ctx context.Context, key, rangeHeader string) (*Obje
 	}
 	result, err := s.client.GetObject(ctx, in)
 	if err != nil {
+		var nsk *s3types.NoSuchKey
+		if errors.As(err, &nsk) {
+			return nil, fmt.Errorf("%w: %s", ErrObjectNotFound, key)
+		}
 		return nil, err
 	}
 	obj := &Object{Body: result.Body}
