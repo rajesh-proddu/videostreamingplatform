@@ -4,6 +4,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -176,6 +177,10 @@ func (h *UploadHandler) Download(w http.ResponseWriter, r *http.Request) {
 
 	obj, err := h.storage.Download(r.Context(), key, rangeHeader)
 	if err != nil {
+		if errors.Is(err, storage.ErrObjectNotFound) {
+			http.Error(w, "Video not found", http.StatusNotFound)
+			return
+		}
 		http.Error(w, "Failed to download file", http.StatusInternalServerError)
 		return
 	}
