@@ -3,12 +3,16 @@ package dl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/yourusername/videostreamingplatform/metadataservice/models"
 )
+
+// ErrVideoNotFound is returned when a video lookup yields no row.
+var ErrVideoNotFound = errors.New("video not found")
 
 // VideoStore defines the database operations required by VideoRepository.
 type VideoStore interface {
@@ -68,7 +72,7 @@ func (r *VideoRepository) GetVideo(ctx context.Context, id string) (*models.Vide
 	}
 
 	if dbVideo == nil {
-		return nil, fmt.Errorf("video not found: %s", id)
+		return nil, fmt.Errorf("%w: %s", ErrVideoNotFound, id)
 	}
 
 	return &models.Video{
