@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/yourusername/videostreamingplatform/utils/recommendations"
 )
@@ -48,6 +49,11 @@ func (h *RecommendationHandler) GetRecommendations(w http.ResponseWriter, r *htt
 
 	query := r.URL.Query().Get("query")
 	limit := 10
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 1 && n <= 50 {
+			limit = n
+		}
+	}
 
 	resp, err := h.client.GetRecommendations(r.Context(), userID, query, limit)
 	if err != nil {
