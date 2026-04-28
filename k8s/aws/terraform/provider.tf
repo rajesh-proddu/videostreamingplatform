@@ -17,7 +17,7 @@ terraform {
 
   backend "s3" {
     bucket         = "videostreamingplatform-terraform-state"
-    key            = "eks/terraform.tfstate"
+    key            = "dev/terraform.tfstate"
     region         = "us-east-1"
     encrypt        = true
     dynamodb_table = "terraform-locks"
