@@ -17,12 +17,17 @@ data:
             add_header Content-Type application/json;
         }
 
-        location ~ /videos/(.+) {
+        # Using a regex-captured variable in proxy_pass forces nginx into
+        # runtime DNS resolution and requires an explicit `resolver` to be
+        # set. Rewriting the URI first lets proxy_pass stay static so nginx
+        # resolves the upstream once at config load — no resolver needed.
+        location ~ ^/videos/(.+)$ {
             if ($request_method = PURGE) {
                 return 204;
             }
 
-            proxy_pass http://minio.videostreamingplatform.svc.cluster.local:9000/video-platform-storage/videos/$1;
+            rewrite ^/videos/(.+)$ /video-platform-storage/videos/$1 break;
+            proxy_pass http://minio.videostreamingplatform.svc.cluster.local:9000;
             proxy_set_header Host minio.videostreamingplatform.svc.cluster.local:9000;
 
             proxy_cache video_cdn;
