@@ -290,7 +290,16 @@ resource "aws_iam_role_policy" "data_service_s3" {
   })
 }
 
-# ─── EBS CSI driver (required for PVC dynamic provisioning on EKS >=1.23) ──
+# ─── EBS CSI IRSA (driver itself is installed via upstream Helm chart) ────
+#
+# We deliberately do NOT install the EKS-managed `aws-ebs-csi-driver` addon
+# here, because we need explicit control of the node DaemonSet's nodeSelector
+# to keep it off nodes that don't host EBS-backed StatefulSets — t3.micro
+# (free tier) max-pods=4 leaves no room for a per-node CSI pod everywhere.
+# The bootstrap script (videostreamingplatform-infra/scripts/bootstrap-aws.sh)
+# installs the upstream chart and pins the DaemonSet to StatefulSet-hosting
+# nodes via `node.nodeSelector: {ebs-csi: "true"}`. This IRSA role is consumed
+# by the chart's `ebs-csi-controller-sa` (annotated via Helm values).
 
 resource "aws_iam_role" "ebs_csi_irsa" {
   name = "ebs-csi-irsa-${var.environment}"
@@ -316,19 +325,6 @@ resource "aws_iam_role" "ebs_csi_irsa" {
 resource "aws_iam_role_policy_attachment" "ebs_csi_managed" {
   role       = aws_iam_role.ebs_csi_irsa.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
-}
-
-resource "aws_eks_addon" "ebs_csi" {
-  cluster_name                = aws_eks_cluster.main.name
-  addon_name                  = "aws-ebs-csi-driver"
-  service_account_role_arn    = aws_iam_role.ebs_csi_irsa.arn
-  resolve_conflicts_on_create = "OVERWRITE"
-  resolve_conflicts_on_update = "OVERWRITE"
-
-  depends_on = [
-    aws_eks_node_group.main,
-    aws_iam_role_policy_attachment.ebs_csi_managed,
-  ]
 }
 
 # ─── VPC CNI addon with prefix delegation ──────────────────────────────────

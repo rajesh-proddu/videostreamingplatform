@@ -8,6 +8,7 @@ type Upload struct {
 	ID               string     `json:"id"`
 	VideoID          string     `json:"video_id"`
 	UserID           string     `json:"user_id"`
+	S3UploadID       string     `json:"-"` // internal S3 multipart UploadId for the final object; never exposed via API
 	TotalSize        int64      `json:"total_size"`
 	UploadedSize     int64      `json:"uploaded_size"`
 	UploadedChunks   int        `json:"uploaded_chunks"`

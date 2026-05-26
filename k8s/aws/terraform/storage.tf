@@ -42,6 +42,20 @@ resource "aws_s3_bucket_lifecycle_configuration" "videos" {
       noncurrent_days = 30
     }
   }
+
+  # Reclaim storage from multipart uploads that were initiated but never
+  # completed (abandoned chunked uploads). Without this, staged parts accrue
+  # storage cost indefinitely since they are not visible as regular objects.
+  rule {
+    id     = "abort-incomplete-multipart"
+    status = "Enabled"
+
+    filter {}
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
 }
 
 resource "aws_s3_bucket_public_access_block" "videos" {

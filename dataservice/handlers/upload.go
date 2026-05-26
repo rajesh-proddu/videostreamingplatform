@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -70,7 +69,15 @@ func (h *UploadHandler) InitiateUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	upload, err := h.service.InitiateUpload(r.Context(), &req)
+	// Open the S3 multipart upload on the final object key. Chunks are staged as
+	// parts against this UploadId and S3 concatenates them on completion.
+	s3UploadID, err := h.storage.CreateMultipart(r.Context(), "videos/"+req.VideoID)
+	if err != nil {
+		http.Error(w, "Failed to initiate upload", http.StatusInternalServerError)
+		return
+	}
+
+	upload, err := h.service.InitiateUpload(r.Context(), &req, s3UploadID)
 	if err != nil {
 		http.Error(w, "Failed to initiate upload", http.StatusInternalServerError)
 		return
@@ -131,9 +138,17 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Upload chunk to S3
-	key := fmt.Sprintf("videos/%s/chunk_%d", upload.VideoID, chunkIndex)
-	if err := h.storage.Upload(r.Context(), key, bytes.NewReader(chunkData), int64(len(chunkData))); err != nil {
+	// A single chunk can never legitimately exceed the declared total upload
+	// size. Reject oversized payloads without capping legitimate large chunks
+	// (which are always smaller than the whole upload).
+	if upload.TotalSize > 0 && int64(len(chunkData)) > upload.TotalSize {
+		http.Error(w, "chunk exceeds declared upload size", http.StatusRequestEntityTooLarge)
+		return
+	}
+
+	// Stage the chunk as an S3 multipart part. Part numbers are 1-indexed.
+	partNumber := int32(chunkIndex + 1)
+	if err := h.storage.UploadPart(r.Context(), "videos/"+upload.VideoID, upload.S3UploadID, partNumber, bytes.NewReader(chunkData), int64(len(chunkData))); err != nil {
 		http.Error(w, "Failed to upload chunk to storage", http.StatusInternalServerError)
 		return
 	}
@@ -328,35 +343,17 @@ func (h *UploadHandler) CompleteUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Merge chunks into a single S3 object
-	var merged bytes.Buffer
-	for i := 0; i < progress.UploadedChunks; i++ {
-		chunkKey := fmt.Sprintf("videos/%s/chunk_%d", progress.VideoID, i)
-		obj, err := h.storage.Download(r.Context(), chunkKey, "")
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to read chunk %d", i), http.StatusInternalServerError)
-			return
-		}
-		if _, err := io.Copy(&merged, obj.Body); err != nil {
-			_ = obj.Body.Close()
-			http.Error(w, fmt.Sprintf("Failed to copy chunk %d", i), http.StatusInternalServerError)
-			return
-		}
-		_ = obj.Body.Close()
-	}
-
-	// Upload merged file
-	finalKey := fmt.Sprintf("videos/%s", progress.VideoID)
-	mergedBytes := merged.Bytes()
-	if err := h.storage.Upload(r.Context(), finalKey, bytes.NewReader(mergedBytes), int64(len(mergedBytes))); err != nil {
-		http.Error(w, "Failed to write merged file", http.StatusInternalServerError)
+	if progress.UploadedChunks == 0 {
+		http.Error(w, "No chunks uploaded for this session", http.StatusBadRequest)
 		return
 	}
 
-	// Clean up chunk objects
-	for i := 0; i < progress.UploadedChunks; i++ {
-		chunkKey := fmt.Sprintf("videos/%s/chunk_%d", progress.VideoID, i)
-		_ = h.storage.Delete(r.Context(), chunkKey)
+	// Ask S3 to concatenate the staged parts into the final object server-side.
+	// No download/buffer/re-upload: the parts never transit this process.
+	finalKey := "videos/" + progress.VideoID
+	if err := h.storage.CompleteMultipart(r.Context(), finalKey, progress.S3UploadID); err != nil {
+		http.Error(w, "Failed to complete multipart upload", http.StatusInternalServerError)
+		return
 	}
 
 	upload, err := h.service.CompleteUpload(r.Context(), uploadID)

@@ -77,8 +77,15 @@ func (m *MySQL) DeleteVideo(ctx context.Context, id string) error {
 
 // ListVideos lists all videos
 func (m *MySQL) ListVideos(ctx context.Context, limit, offset int) ([]*models.Video, error) {
-	query := `SELECT id, title, description, duration, size_bytes, upload_status, created_at, updated_at 
-	          FROM videos ORDER BY created_at DESC LIMIT ? OFFSET ?`
+	// Deferred join: a covering index subquery (idx_created_at_id) selects only
+	// the page's PKs in order, then we join back for the full rows. This keeps
+	// deep-OFFSET pagination on the index instead of degrading to a full-table
+	// scan + filesort, which the optimizer picks when all columns are selected
+	// directly (the non-covered TEXT columns make per-row lookups look costly).
+	query := `SELECT v.id, v.title, v.description, v.duration, v.size_bytes, v.upload_status, v.created_at, v.updated_at
+	          FROM videos v
+	          JOIN (SELECT id FROM videos ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?) k ON v.id = k.id
+	          ORDER BY v.created_at DESC, v.id DESC`
 	rows, err := m.db.QueryContext(ctx, query, limit, offset)
 	if err != nil {
 		return nil, err

@@ -25,8 +25,10 @@ func NewUploadService(uploadRepo dl.UploadRepository, logger *log.Logger) *Uploa
 	}
 }
 
-// InitiateUpload initiates a new upload session
-func (s *UploadService) InitiateUpload(ctx context.Context, req *models.UploadInitiateRequest) (*models.Upload, error) {
+// InitiateUpload initiates a new upload session. s3UploadID is the S3 multipart
+// UploadId opened for the final object (empty for callers that do not stage bytes
+// in S3, e.g. the gRPC stub).
+func (s *UploadService) InitiateUpload(ctx context.Context, req *models.UploadInitiateRequest, s3UploadID string) (*models.Upload, error) {
 	if req == nil {
 		return nil, fmt.Errorf("request cannot be nil")
 	}
@@ -38,6 +40,7 @@ func (s *UploadService) InitiateUpload(ctx context.Context, req *models.UploadIn
 		ID:             uploadID,
 		VideoID:        req.VideoID,
 		UserID:         req.UserID,
+		S3UploadID:     s3UploadID,
 		TotalSize:      req.TotalSize,
 		UploadedSize:   0,
 		UploadedChunks: 0,

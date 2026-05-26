@@ -33,7 +33,9 @@ func (s *DataServiceServer) InitiateUpload(ctx context.Context, req *pb.UploadIn
 		TotalSize: req.TotalSize,
 	}
 
-	upload, err := s.uploadService.InitiateUpload(ctx, serviceReq)
+	// The gRPC path does not stage bytes in S3 (UploadChunk only tracks progress),
+	// so no S3 multipart session is opened.
+	upload, err := s.uploadService.InitiateUpload(ctx, serviceReq, "")
 	if err != nil {
 		s.logger.Printf("Error initiating upload: %v", err)
 		return nil, err

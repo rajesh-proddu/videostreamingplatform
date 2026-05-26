@@ -24,12 +24,12 @@ func (r *MySQLUploadRepository) CreateUpload(ctx context.Context, upload *models
 		return fmt.Errorf("upload cannot be nil")
 	}
 
-	query := `INSERT INTO uploads (id, video_id, user_id, total_size, uploaded_size,
+	query := `INSERT INTO uploads (id, video_id, user_id, s3_upload_id, total_size, uploaded_size,
 		uploaded_chunks, total_chunks, status, percentage, speed_mbps, estimated_seconds, completed_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err := r.db.ExecContext(ctx, query,
-		upload.ID, upload.VideoID, upload.UserID,
+		upload.ID, upload.VideoID, upload.UserID, upload.S3UploadID,
 		upload.TotalSize, upload.UploadedSize,
 		upload.UploadedChunks, upload.TotalChunks,
 		upload.Status, upload.Percentage,
@@ -41,7 +41,7 @@ func (r *MySQLUploadRepository) CreateUpload(ctx context.Context, upload *models
 
 // GetUploadByID retrieves an upload by ID.
 func (r *MySQLUploadRepository) GetUploadByID(ctx context.Context, uploadID string) (*models.Upload, error) {
-	query := `SELECT id, video_id, user_id, total_size, uploaded_size, uploaded_chunks, total_chunks,
+	query := `SELECT id, video_id, user_id, s3_upload_id, total_size, uploaded_size, uploaded_chunks, total_chunks,
 		status, percentage, speed_mbps, estimated_seconds, created_at, updated_at, completed_at
 		FROM uploads WHERE id = ?`
 
@@ -51,7 +51,7 @@ func (r *MySQLUploadRepository) GetUploadByID(ctx context.Context, uploadID stri
 
 // ListUploadsByUserID retrieves all uploads for a given user.
 func (r *MySQLUploadRepository) ListUploadsByUserID(ctx context.Context, userID string) ([]*models.Upload, error) {
-	query := `SELECT id, video_id, user_id, total_size, uploaded_size, uploaded_chunks, total_chunks,
+	query := `SELECT id, video_id, user_id, s3_upload_id, total_size, uploaded_size, uploaded_chunks, total_chunks,
 		status, percentage, speed_mbps, estimated_seconds, created_at, updated_at, completed_at
 		FROM uploads WHERE user_id = ? ORDER BY created_at DESC`
 
@@ -78,13 +78,13 @@ func (r *MySQLUploadRepository) UpdateUpload(ctx context.Context, upload *models
 		return fmt.Errorf("upload cannot be nil")
 	}
 
-	query := `UPDATE uploads SET video_id = ?, user_id = ?, total_size = ?, uploaded_size = ?,
+	query := `UPDATE uploads SET video_id = ?, user_id = ?, s3_upload_id = ?, total_size = ?, uploaded_size = ?,
 		uploaded_chunks = ?, total_chunks = ?, status = ?, percentage = ?,
 		speed_mbps = ?, estimated_seconds = ?, completed_at = ?
 		WHERE id = ?`
 
 	result, err := r.db.ExecContext(ctx, query,
-		upload.VideoID, upload.UserID,
+		upload.VideoID, upload.UserID, upload.S3UploadID,
 		upload.TotalSize, upload.UploadedSize,
 		upload.UploadedChunks, upload.TotalChunks,
 		upload.Status, upload.Percentage,
@@ -129,7 +129,7 @@ func scanUpload(row *sql.Row) (*models.Upload, error) {
 	var estimatedSeconds sql.NullInt64
 
 	err := row.Scan(
-		&u.ID, &u.VideoID, &u.UserID,
+		&u.ID, &u.VideoID, &u.UserID, &u.S3UploadID,
 		&u.TotalSize, &u.UploadedSize,
 		&u.UploadedChunks, &u.TotalChunks,
 		&u.Status, &u.Percentage,
@@ -155,7 +155,7 @@ func scanUploadFromRows(rows *sql.Rows) (*models.Upload, error) {
 	var estimatedSeconds sql.NullInt64
 
 	err := rows.Scan(
-		&u.ID, &u.VideoID, &u.UserID,
+		&u.ID, &u.VideoID, &u.UserID, &u.S3UploadID,
 		&u.TotalSize, &u.UploadedSize,
 		&u.UploadedChunks, &u.TotalChunks,
 		&u.Status, &u.Percentage,

@@ -3,6 +3,7 @@ package dl
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -68,6 +69,9 @@ func (r *VideoRepository) CreateVideo(ctx context.Context, req *models.CreateVid
 func (r *VideoRepository) GetVideo(ctx context.Context, id string) (*models.Video, error) {
 	dbVideo, err := r.db.GetVideo(ctx, id)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("%w: %s", ErrVideoNotFound, id)
+		}
 		return nil, fmt.Errorf("failed to get video: %w", err)
 	}
 

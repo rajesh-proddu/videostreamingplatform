@@ -23,7 +23,7 @@ func TestInitiateUpload(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	upload, err := uploadService.InitiateUpload(ctx, req)
+	upload, err := uploadService.InitiateUpload(ctx, req, "")
 
 	if err != nil {
 		t.Fatalf("InitiateUpload failed: %v", err)
@@ -63,7 +63,7 @@ func TestRecordChunkUpload(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	upload, err := uploadService.InitiateUpload(ctx, req)
+	upload, err := uploadService.InitiateUpload(ctx, req, "")
 	if err != nil {
 		t.Fatalf("InitiateUpload failed: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestCompleteUpload(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	upload, err := uploadService.InitiateUpload(ctx, req)
+	upload, err := uploadService.InitiateUpload(ctx, req, "")
 	if err != nil {
 		t.Fatalf("InitiateUpload failed: %v", err)
 	}
@@ -162,7 +162,7 @@ func TestListUserUploads(t *testing.T) {
 			UserID:    userID,
 			TotalSize: 10 * 1024 * 1024,
 		}
-		_, err := uploadService.InitiateUpload(ctx, req)
+		_, err := uploadService.InitiateUpload(ctx, req, "")
 		if err != nil {
 			t.Fatalf("InitiateUpload failed: %v", err)
 		}

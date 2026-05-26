@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -64,6 +65,77 @@ func (s *S3Client) Upload(ctx context.Context, key string, body io.Reader, size 
 		Key:           &key,
 		Body:          body,
 		ContentLength: &size,
+	})
+	return err
+}
+
+// CreateMultipart opens an S3 multipart upload for key and returns the S3-assigned
+// UploadId. Parts are staged inside S3 (not the server) until CompleteMultipart.
+func (s *S3Client) CreateMultipart(ctx context.Context, key string) (string, error) {
+	out, err := s.client.CreateMultipartUpload(ctx, &s3.CreateMultipartUploadInput{
+		Bucket: &s.bucket,
+		Key:    &key,
+	})
+	if err != nil {
+		return "", err
+	}
+	return aws.ToString(out.UploadId), nil
+}
+
+// UploadPart stages a single part of a multipart upload. partNumber is 1-indexed
+// (1..10000). S3 retains each part keyed by (key, uploadID, partNumber); re-uploading
+// the same partNumber overwrites it, so chunk retries are idempotent.
+func (s *S3Client) UploadPart(ctx context.Context, key, uploadID string, partNumber int32, body io.Reader, size int64) error {
+	_, err := s.client.UploadPart(ctx, &s3.UploadPartInput{
+		Bucket:        &s.bucket,
+		Key:           &key,
+		UploadId:      &uploadID,
+		PartNumber:    aws.Int32(partNumber),
+		Body:          body,
+		ContentLength: &size,
+	})
+	return err
+}
+
+// CompleteMultipart finalizes a multipart upload. It lists the parts S3 already
+// holds (option 2: no client-side ETag tracking) and asks S3 to concatenate them
+// server-side into the final object. The concatenation is atomic — the object
+// appears whole or not at all.
+func (s *S3Client) CompleteMultipart(ctx context.Context, key, uploadID string) error {
+	var parts []s3types.CompletedPart
+	var marker *string
+	for {
+		out, err := s.client.ListParts(ctx, &s3.ListPartsInput{
+			Bucket:           &s.bucket,
+			Key:              &key,
+			UploadId:         &uploadID,
+			PartNumberMarker: marker,
+		})
+		if err != nil {
+			return err
+		}
+		// ListParts returns parts in ascending PartNumber order, which is also the
+		// order CompleteMultipartUpload requires.
+		for _, p := range out.Parts {
+			parts = append(parts, s3types.CompletedPart{
+				PartNumber: p.PartNumber,
+				ETag:       p.ETag,
+			})
+		}
+		if out.IsTruncated == nil || !*out.IsTruncated {
+			break
+		}
+		marker = out.NextPartNumberMarker
+	}
+	if len(parts) == 0 {
+		return fmt.Errorf("no uploaded parts found for multipart upload %s", uploadID)
+	}
+
+	_, err := s.client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
+		Bucket:          &s.bucket,
+		Key:             &key,
+		UploadId:        &uploadID,
+		MultipartUpload: &s3types.CompletedMultipartUpload{Parts: parts},
 	})
 	return err
 }

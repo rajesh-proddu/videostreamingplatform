@@ -26,8 +26,6 @@ services:
     environment:
       SERVICES: s3
       DEBUG: 1
-    ports:
-      - "4566:4566"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
     networks:
@@ -175,9 +173,10 @@ services:
       KAFKA_BROKERS: kafka:9092
       KAFKA_VIDEO_TOPIC: video-events
       REDIS_ADDR: redis:6379
-      RATE_LIMIT_PER_MIN: "100"
-      RATE_LIMIT_BURST: "150"
+      RATE_LIMIT_PER_MIN: "100000"
+      RATE_LIMIT_BURST: "10000"
       MYSQL_MAX_CONN: "50"
+      RECOMMENDATION_SERVICE_URL: http://videostreamingplatform-recommendations-recommendation-api-1:8000
     ports:
       - "8080:8080"
     depends_on:
@@ -222,8 +221,8 @@ services:
       UPLOAD_STORE: mysql
       KAFKA_BROKERS: kafka:9092
       KAFKA_WATCH_TOPIC: watch-events
-      RATE_LIMIT_PER_MIN: "100"
-      RATE_LIMIT_BURST: "150"
+      RATE_LIMIT_PER_MIN: "100000"
+      RATE_LIMIT_BURST: "10000"
       MYSQL_MAX_CONN: "50"
     ports:
       - "8081:8081"

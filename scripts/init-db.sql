@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS videos (
   upload_status ENUM('PENDING', 'UPLOADING', 'COMPLETED', 'FAILED') DEFAULT 'PENDING',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  INDEX idx_created_at (created_at),
+  INDEX idx_created_at_id (created_at DESC, id DESC),
   INDEX idx_status (upload_status)
 );
 
@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS uploads (
   id VARCHAR(36) PRIMARY KEY,
   video_id VARCHAR(36) NOT NULL,
   user_id VARCHAR(36) NOT NULL,
+  s3_upload_id VARCHAR(255) NOT NULL DEFAULT '',
   total_size BIGINT NOT NULL DEFAULT 0,
   uploaded_size BIGINT NOT NULL DEFAULT 0,
   uploaded_chunks INT NOT NULL DEFAULT 0,

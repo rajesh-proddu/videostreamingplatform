@@ -107,3 +107,8 @@ output "redis_endpoint" {
   description = "ElastiCache Redis primary endpoint"
   value       = "${aws_elasticache_replication_group.main.primary_endpoint_address}:6379"
 }
+
+output "ebs_csi_irsa_role_arn" {
+  description = "IRSA role ARN for ebs_csi_irsa"
+  value       = aws_iam_role.ebs_csi_irsa.arn
+}
