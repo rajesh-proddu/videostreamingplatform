@@ -1,12 +1,18 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: kafka
   namespace: infra
   labels:
     app: kafka
 spec:
-  replicas: 1
+  serviceName: kafka
+  replicas: 3
+  # Parallel start is required for KRaft: with OrderedReady, kafka-0 can't become
+  # Ready until the controller quorum forms (needs 2 of 3 voters), but kafka-1
+  # wouldn't start until kafka-0 is Ready — a deadlock. Parallel lets all three
+  # boot together and elect a leader.
+  podManagementPolicy: Parallel
   selector:
     matchLabels:
       app: kafka
@@ -15,19 +21,43 @@ spec:
       labels:
         app: kafka
     spec:
+      # Soft (not required) anti-affinity: on a multi-node Kind cluster brokers
+      # spread out; on a single-node Kind they happily co-locate (no EBS / node
+      # constraints locally).
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: kafka
+                topologyKey: kubernetes.io/hostname
       containers:
         - name: kafka
           image: apache/kafka:3.9.0
+          # Per-pod NODE_ID and advertised listener are derived from the
+          # StatefulSet ordinal (kafka-0 -> node 1, kafka-1 -> node 2, ...),
+          # then we hand off to the image's normal entrypoint chain.
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              ORD="${HOSTNAME##*-}"
+              export KAFKA_NODE_ID="$((ORD + 1))"
+              export KAFKA_ADVERTISED_LISTENERS="PLAINTEXT://${HOSTNAME}.kafka.infra.svc.cluster.local:9092"
+              exec /__cacert_entrypoint.sh /etc/kafka/docker/run
           ports:
             - containerPort: 9092
               name: broker
+            - containerPort: 9093
+              name: controller
           env:
-            - name: KAFKA_NODE_ID
-              value: "1"
             - name: KAFKA_PROCESS_ROLES
               value: "broker,controller"
             - name: KAFKA_CONTROLLER_QUORUM_VOTERS
-              value: "1@localhost:9093"
+              value: "1@kafka-0.kafka.infra.svc.cluster.local:9093,2@kafka-1.kafka.infra.svc.cluster.local:9093,3@kafka-2.kafka.infra.svc.cluster.local:9093"
             - name: KAFKA_CONTROLLER_LISTENER_NAMES
               value: "CONTROLLER"
             - name: KAFKA_INTER_BROKER_LISTENER_NAME
@@ -36,14 +66,16 @@ spec:
               value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
             - name: KAFKA_LISTENERS
               value: "PLAINTEXT://:9092,CONTROLLER://:9093"
-            - name: KAFKA_ADVERTISED_LISTENERS
-              value: "PLAINTEXT://kafka.infra.svc.cluster.local:9092"
             - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
-              value: "1"
+              value: "3"
             - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
-              value: "1"
+              value: "3"
             - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
-              value: "1"
+              value: "2"
+            - name: KAFKA_MESSAGE_MAX_BYTES
+              value: "2097152"
+            - name: KAFKA_REPLICA_FETCH_MAX_BYTES
+              value: "4194304"
             - name: KAFKA_NUM_PARTITIONS
               value: "3"
             - name: KAFKA_LOG_RETENTION_HOURS
@@ -59,7 +91,7 @@ spec:
               memory: 1Gi
           volumeMounts:
             - name: kafka-data
-              mountPath: /tmp/kraft-combined-logs
+              mountPath: /var/lib/kafka/data
           readinessProbe:
             tcpSocket:
               port: 9092
@@ -73,9 +105,14 @@ spec:
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 5
-      volumes:
-        - name: kafka-data
-          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: kafka-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
 ---
 apiVersion: v1
 kind: Service
@@ -85,13 +122,18 @@ metadata:
   labels:
     app: kafka
 spec:
+  # Headless: gives each broker stable per-pod DNS (kafka-0.kafka...,
+  # kafka-1.kafka..., ...) for the KRaft quorum and advertised listeners.
+  clusterIP: None
   selector:
     app: kafka
   ports:
     - name: broker
       port: 9092
       targetPort: 9092
-  type: ClusterIP
+    - name: controller
+      port: 9093
+      targetPort: 9093
 ---
 apiVersion: batch/v1
 kind: Job
@@ -110,12 +152,14 @@ spec:
             - /bin/bash
             - -c
             - |
-              echo "Waiting for Kafka to be ready..."
-              until /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list > /dev/null 2>&1; do
-                echo "Kafka not ready, retrying in 5s..."
-                sleep 5
+              echo "Waiting for all 3 Kafka brokers..."
+              for h in kafka-0 kafka-1 kafka-2; do
+                until /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server ${h}.kafka.infra.svc.cluster.local:9092 > /dev/null 2>&1; do
+                  echo "  $h not ready, retrying in 5s..."
+                  sleep 5
+                done
               done
-              echo "Kafka is ready"
+              echo "All brokers ready"
       containers:
         - name: create-topics
           image: apache/kafka:3.9.0
@@ -123,16 +167,16 @@ spec:
             - /bin/bash
             - -c
             - |
-              echo "Creating topics..."
+              echo "Creating topics (RF=3)..."
               /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 \
                 --create --if-not-exists \
                 --topic video-events \
                 --partitions 3 \
-                --replication-factor 1
+                --replication-factor 3
               /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 \
                 --create --if-not-exists \
                 --topic watch-events \
-                --partitions 3 \
-                --replication-factor 1
+                --partitions 6 \
+                --replication-factor 3
               echo "Topics created:"
               /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
