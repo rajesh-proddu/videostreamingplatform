@@ -10,6 +10,8 @@ NC='\033[0m' # No Color
 # Configuration
 METADATA_URL="http://localhost:8080"
 DATA_URL="http://localhost:8081"
+USER_URL="${USER_URL:-http://localhost:8082}"
+AUTH_ARGS=()  # populated by get_token; bearer header for gated download
 TEST_FILE="test-video.bin"
 TEST_FILE_SIZE=$((10 * 1024 * 1024)) # 10MB for testing
 CHUNK_SIZE=$((5 * 1024 * 1024)) # 5MB chunks
@@ -205,11 +207,55 @@ complete_upload() {
     fi
 }
 
+# Acquire an entitled token so the gated download succeeds. Best-effort: if the
+# user service is unreachable, the paywall is presumably off, so we skip auth.
+# Assumes PAYMENT_PROVIDER=mock (the local default).
+get_token() {
+    if ! curl -s "${USER_URL}/health" > /dev/null 2>&1; then
+        log_info "User service unreachable — skipping auth (paywall assumed off)"
+        return 0
+    fi
+    log_info "Acquiring entitled token..."
+
+    local email="component-$(date +%s)-$$@example.com"
+    local pw="component-pass-123"
+
+    curl -s -X POST "${USER_URL}/auth/register" \
+        -H 'Content-Type: application/json' \
+        -d "{\"email\":\"${email}\",\"password\":\"${pw}\"}" > /dev/null
+
+    local token
+    token=$(curl -s -X POST "${USER_URL}/auth/login" \
+        -H 'Content-Type: application/json' \
+        -d "{\"email\":\"${email}\",\"password\":\"${pw}\"}" \
+        | grep -o '"access_token":"[^"]*"' | head -1 | cut -d'"' -f4)
+    [ -n "$token" ] || { log_error "login failed"; return 1; }
+
+    local sub ref
+    sub=$(curl -s -X POST "${USER_URL}/subscriptions" \
+        -H "Authorization: Bearer ${token}" \
+        -H 'Content-Type: application/json' \
+        -d '{"plan":"premium"}')
+    ref=$(echo "$sub" | grep -o '"payment_url":"[^"]*"' | cut -d'"' -f4 | sed -n 's/.*[?&]ref=\([^&"]*\).*/\1/p')
+    [ -n "$ref" ] || { log_error "no payment ref (mock provider expected): $sub"; return 1; }
+
+    # Simulate the hosted payment → webhook activates the subscription.
+    curl -s -o /dev/null "${USER_URL}/mock/checkout?ref=${ref}"
+
+    # Re-login for a token carrying the active entitlement.
+    token=$(curl -s -X POST "${USER_URL}/auth/login" \
+        -H 'Content-Type: application/json' \
+        -d "{\"email\":\"${email}\",\"password\":\"${pw}\"}" \
+        | grep -o '"access_token":"[^"]*"' | head -1 | cut -d'"' -f4)
+    AUTH_ARGS=(-H "Authorization: Bearer ${token}")
+    log_info "✓ Entitled token acquired"
+}
+
 # Download file
 download_file() {
     log_info "Downloading file..."
-    
-    curl -s -o "downloaded-${VIDEO_ID}.bin" "${DATA_URL}/videos/${VIDEO_ID}/download"
+
+    curl -s "${AUTH_ARGS[@]}" -o "downloaded-${VIDEO_ID}.bin" "${DATA_URL}/videos/${VIDEO_ID}/download"
     
     if [ -f "downloaded-${VIDEO_ID}.bin" ]; then
         log_info "✓ File downloaded: downloaded-${VIDEO_ID}.bin"
@@ -274,6 +320,7 @@ main() {
     initiate_upload || exit 1
     upload_chunks || exit 1
     complete_upload || exit 1
+    get_token || exit 1
     download_file || exit 1
     verify_checksum || exit 1
     

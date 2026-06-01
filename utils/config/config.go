@@ -68,6 +68,18 @@ type Config struct {
 	// CDN configuration
 	CDNDistributionID string // CloudFront distribution ID (empty = CDN invalidation disabled)
 	CDNBaseURL        string // CDN base URL for video downloads (e.g. https://d123.cloudfront.net). Empty = stream from origin.
+
+	// Auth / JWT configuration (userservice issues, other services verify)
+	JWTSigningSecret string        // HS256 shared secret. Empty = auth disabled (enforcement off).
+	JWTAccessTTL     time.Duration // access token lifetime
+	JWTRefreshTTL    time.Duration // refresh token lifetime
+
+	// Payment configuration (userservice only)
+	PaymentProvider       string // "mock" | "razorpay"
+	PublicBaseURL         string // externally reachable base URL (callback_url, mock checkout)
+	RazorpayKeyID         string
+	RazorpayKeySecret     string
+	RazorpayWebhookSecret string
 }
 
 // New creates a new Config instance from environment variables
@@ -106,6 +118,14 @@ func New(serviceName string) *Config {
 		RateLimitBurst:           getEnvAsInt("RATE_LIMIT_BURST", 100),     // burst of 100 default
 		CDNDistributionID:        getEnvOrDefault("CDN_DISTRIBUTION_ID", ""),
 		CDNBaseURL:               getEnvOrDefault("CDN_BASE_URL", ""),
+		JWTSigningSecret:         getEnvOrDefault("JWT_SIGNING_SECRET", ""),
+		JWTAccessTTL:             getEnvAsDuration("JWT_ACCESS_TTL", 15*time.Minute),
+		JWTRefreshTTL:            getEnvAsDuration("JWT_REFRESH_TTL", 720*time.Hour),
+		PaymentProvider:          getEnvOrDefault("PAYMENT_PROVIDER", "mock"),
+		PublicBaseURL:            getEnvOrDefault("PUBLIC_BASE_URL", "http://localhost:8082"),
+		RazorpayKeyID:            getEnvOrDefault("RAZORPAY_KEY_ID", ""),
+		RazorpayKeySecret:        getEnvOrDefault("RAZORPAY_KEY_SECRET", ""),
+		RazorpayWebhookSecret:    getEnvOrDefault("RAZORPAY_WEBHOOK_SECRET", ""),
 	}
 }
 

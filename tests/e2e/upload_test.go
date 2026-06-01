@@ -9,7 +9,7 @@ import (
 //	health → create video → initiate upload → send chunks → track progress → complete
 func TestUploadAgent(t *testing.T) {
 	cfg := LoadConfig(t)
-	c := NewClient(cfg.MetadataURL, cfg.DataURL)
+	c := NewClient(cfg.MetadataURL, cfg.DataURL, cfg.UserURL)
 	requireHealthy(t, c)
 
 	const fileSize = 12 * 1024 * 1024 // 12 MB → 3 chunks of 5 MB + 1 of 2 MB

@@ -9,7 +9,7 @@ import (
 //	create → get → update → list (verify present) → delete → list (verify gone)
 func TestVideoCRUDLifecycle(t *testing.T) {
 	cfg := LoadConfig(t)
-	c := NewClient(cfg.MetadataURL, cfg.DataURL)
+	c := NewClient(cfg.MetadataURL, cfg.DataURL, cfg.UserURL)
 	requireHealthy(t, c)
 
 	// 1. Create

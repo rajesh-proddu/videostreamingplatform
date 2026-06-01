@@ -1,21 +1,12 @@
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: data-service
-  namespace: videostreamingplatform
-  annotations:
-    eks.amazonaws.com/role-arn: ${IRSA_DATA_ROLE_ARN}
-
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: data-service
+  name: user-service
   namespace: videostreamingplatform
   labels:
-    app: data-service
+    app: user-service
 spec:
-  replicas: 2
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -23,39 +14,26 @@ spec:
       maxUnavailable: 1
   selector:
     matchLabels:
-      app: data-service
+      app: user-service
   template:
     metadata:
       labels:
-        app: data-service
+        app: user-service
     spec:
-      serviceAccountName: data-service
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                labelSelector:
-                  matchExpressions:
-                    - key: app
-                      operator: In
-                      values:
-                        - data-service
-                topologyKey: kubernetes.io/hostname
       containers:
-        - name: data-service
-          image: ghcr.io/rajesh-proddu/videostreamingplatform/data-service:latest
+        - name: user-service
+          image: ghcr.io/rajesh-proddu/videostreamingplatform/userservice:latest
           imagePullPolicy: Always
           ports:
-            - name: http2
-              containerPort: 8081
+            - name: http
+              containerPort: 8082
               protocol: TCP
           envFrom:
             - configMapRef:
                 name: app-config
           env:
             - name: HTTP_PORT
-              value: "8081"
+              value: "8082"
             - name: MYSQL_HOST
               valueFrom:
                 secretKeyRef:
@@ -71,7 +49,6 @@ spec:
                 secretKeyRef:
                   name: rds-credentials
                   key: password
-            # Gate playback/download behind an active subscription.
             - name: JWT_SIGNING_SECRET
               valueFrom:
                 secretKeyRef:
@@ -79,17 +56,41 @@ spec:
                   key: jwt-signing-secret
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: "jaeger.observability.svc.cluster.local:4318"
+            # Payment provider. Switch to "razorpay" and supply razorpay-credentials
+            # (key id/secret/webhook secret) to take real test-mode payments.
+            - name: PAYMENT_PROVIDER
+              value: "mock"
+            - name: PUBLIC_BASE_URL
+              value: "http://user-service.videostreamingplatform.svc.cluster.local:8082"
+            - name: RAZORPAY_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: razorpay-credentials
+                  key: key-id
+                  optional: true
+            - name: RAZORPAY_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: razorpay-credentials
+                  key: key-secret
+                  optional: true
+            - name: RAZORPAY_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: razorpay-credentials
+                  key: webhook-secret
+                  optional: true
           resources:
             requests:
-              cpu: 200m
-              memory: 256Mi
+              cpu: 100m
+              memory: 128Mi
             limits:
-              cpu: 1000m
-              memory: 1Gi
+              cpu: 500m
+              memory: 384Mi
           livenessProbe:
             httpGet:
               path: /health
-              port: http2
+              port: http
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
@@ -97,13 +98,8 @@ spec:
           readinessProbe:
             httpGet:
               path: /health
-              port: http2
+              port: http
             initialDelaySeconds: 10
             periodSeconds: 5
             timeoutSeconds: 2
             failureThreshold: 2
-          securityContext:
-            readOnlyRootFilesystem: true
-            runAsNonRoot: true
-            runAsUser: 1000
-            allowPrivilegeEscalation: false

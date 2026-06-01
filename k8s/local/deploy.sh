@@ -65,11 +65,14 @@ build_and_load_images() {
     -f "$REPO_ROOT/build/docker/dataservice.Dockerfile" "$REPO_ROOT"
   docker build -t videostreamingplatform/cdn-invalidator:latest \
     -f "$REPO_ROOT/build/docker/cdn-invalidator.Dockerfile" "$REPO_ROOT"
+  docker build -t videostreamingplatform/userservice:latest \
+    -f "$REPO_ROOT/build/docker/userservice.Dockerfile" "$REPO_ROOT"
 
   log "Loading images into KIND cluster..."
   kind load docker-image videostreamingplatform/metadata-service:latest --name "$CLUSTER_NAME"
   kind load docker-image videostreamingplatform/data-service:latest --name "$CLUSTER_NAME"
   kind load docker-image videostreamingplatform/cdn-invalidator:latest --name "$CLUSTER_NAME"
+  kind load docker-image videostreamingplatform/userservice:latest --name "$CLUSTER_NAME"
 }
 
 create_grafana_dashboards_configmap() {
@@ -131,6 +134,7 @@ deploy_manifests() {
   kubectl apply -f "$K8S_LOCAL/services.yaml"
   kubectl apply -f "$K8S_LOCAL/metadata-service-deploy.yaml"
   kubectl apply -f "$K8S_LOCAL/data-service-deploy.yaml"
+  kubectl apply -f "$K8S_LOCAL/user-service-deploy.yaml"
   kubectl apply -f "$K8S_LOCAL/cdn-invalidator-deploy.yaml"
 
   log "Waiting for services to be ready..."
@@ -141,6 +145,10 @@ deploy_manifests() {
   kubectl wait --namespace="$NAMESPACE" \
     --for=condition=ready pod -l app=data-service \
     --timeout=120s || warn "data-service not ready yet"
+
+  kubectl wait --namespace="$NAMESPACE" \
+    --for=condition=ready pod -l app=user-service \
+    --timeout=120s || warn "user-service not ready yet"
 
   # Iceberg (REST catalog + MinIO bucket init)
   log "Waiting for Iceberg REST catalog to be ready..."
@@ -201,8 +209,10 @@ rebuild() {
   log "Restarting deployments..."
   kubectl rollout restart deployment/metadata-service -n "$NAMESPACE"
   kubectl rollout restart deployment/data-service -n "$NAMESPACE"
+  kubectl rollout restart deployment/user-service -n "$NAMESPACE"
   kubectl rollout status deployment/metadata-service -n "$NAMESPACE" --timeout=120s
   kubectl rollout status deployment/data-service -n "$NAMESPACE" --timeout=120s
+  kubectl rollout status deployment/user-service -n "$NAMESPACE" --timeout=120s
   show_status
 }
 

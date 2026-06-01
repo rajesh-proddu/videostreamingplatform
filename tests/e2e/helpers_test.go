@@ -22,6 +22,23 @@ func requireHealthy(t *testing.T, c *Client) {
 	}
 }
 
+// ensureEntitled acquires an entitled token so gated download calls succeed. If
+// the user service is unreachable, the download paywall is presumably disabled,
+// so we proceed unauthenticated.
+func ensureEntitled(t *testing.T, c *Client) {
+	t.Helper()
+	resp, err := c.HTTP.Get(c.UserURL + "/health")
+	if err != nil {
+		t.Logf("user service unreachable (%v) — proceeding without auth (paywall assumed off)", err)
+		return
+	}
+	_ = resp.Body.Close()
+	if err := c.Authenticate(); err != nil {
+		t.Fatalf("authenticate: %v", err)
+	}
+	t.Log("acquired entitled token")
+}
+
 // randomPayload returns n bytes of random data.
 func randomPayload(t *testing.T, n int) []byte {
 	t.Helper()

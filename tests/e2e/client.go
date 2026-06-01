@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -83,22 +84,117 @@ type CompleteUploadResponse struct {
 
 // ---------- Client ----------
 
-// Client wraps both service APIs.
+// Client wraps the service APIs.
 type Client struct {
 	MetadataURL string
 	DataURL     string
+	UserURL     string
 	HTTP        *http.Client
+	token       string // entitled access token, set by Authenticate
 }
 
 // NewClient creates an HTTP client pointed at the given service URLs.
-func NewClient(metadataURL, dataURL string) *Client {
+func NewClient(metadataURL, dataURL, userURL string) *Client {
 	return &Client{
 		MetadataURL: metadataURL,
 		DataURL:     dataURL,
+		UserURL:     userURL,
 		HTTP: &http.Client{
 			Timeout: 60 * time.Second,
 		},
 	}
+}
+
+// Authenticate registers a fresh user, subscribes to the premium plan, simulates
+// payment via the mock provider's hosted checkout, and stores the resulting
+// entitled access token. Subsequent DownloadVideo calls send it as a bearer
+// token. Assumes PAYMENT_PROVIDER=mock (the local/e2e default).
+func (c *Client) Authenticate() error {
+	email := fmt.Sprintf("e2e-%d@example.com", time.Now().UnixNano())
+	const pw = "e2e-pass-123"
+
+	if err := c.userPost("/auth/register", map[string]string{"email": email, "password": pw}, nil); err != nil {
+		return fmt.Errorf("register: %w", err)
+	}
+	var login struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := c.userPost("/auth/login", map[string]string{"email": email, "password": pw}, &login); err != nil {
+		return fmt.Errorf("login: %w", err)
+	}
+	c.token = login.AccessToken
+
+	var sub struct {
+		PaymentURL string `json:"payment_url"`
+	}
+	if err := c.userPost("/subscriptions", map[string]string{"plan": "premium"}, &sub); err != nil {
+		return fmt.Errorf("subscribe: %w", err)
+	}
+	ref, err := refFromURL(sub.PaymentURL)
+	if err != nil {
+		return err
+	}
+
+	// Simulate the hosted payment → fires the webhook → activates the subscription.
+	resp, err := c.HTTP.Get(fmt.Sprintf("%s/mock/checkout?ref=%s", c.UserURL, ref))
+	if err != nil {
+		return fmt.Errorf("mock checkout: %w", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("mock checkout: status %d", resp.StatusCode)
+	}
+
+	// Re-login to mint a token that now carries the active entitlement.
+	var login2 struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := c.userPost("/auth/login", map[string]string{"email": email, "password": pw}, &login2); err != nil {
+		return fmt.Errorf("re-login: %w", err)
+	}
+	c.token = login2.AccessToken
+	return nil
+}
+
+// userPost posts JSON to the user service, attaching the bearer token if set.
+func (c *Client) userPost(path string, body, out any) error {
+	b, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest(http.MethodPost, c.UserURL+path, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		rb, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("%s: status %d: %s", path, resp.StatusCode, string(rb))
+	}
+	if out != nil {
+		return json.NewDecoder(resp.Body).Decode(out)
+	}
+	return nil
+}
+
+func refFromURL(raw string) (string, error) {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "", fmt.Errorf("parse payment url: %w", err)
+	}
+	ref := u.Query().Get("ref")
+	if ref == "" {
+		return "", fmt.Errorf("no ref in payment url %q (mock provider expected)", raw)
+	}
+	return ref, nil
 }
 
 // ---------- Health ----------
@@ -293,7 +389,14 @@ func (c *Client) CompleteUpload(uploadID string) (*CompleteUploadResponse, error
 // ---------- Download ----------
 
 func (c *Client) DownloadVideo(videoID string) ([]byte, error) {
-	resp, err := c.HTTP.Get(fmt.Sprintf("%s/videos/%s/download", c.DataURL, videoID))
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/videos/%s/download", c.DataURL, videoID), nil)
+	if err != nil {
+		return nil, fmt.Errorf("download: %w", err)
+	}
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+	resp, err := c.HTTP.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("download: %w", err)
 	}

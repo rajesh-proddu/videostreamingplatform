@@ -42,6 +42,34 @@ data:
             action: keep
             regex: http2
 
+      # Python services in analytics + recommendations namespaces self-advertise
+      # via prometheus.io/scrape pod annotations. One generic job replaces a
+      # per-service block; pod label `app` becomes the metric `service` label.
+      - job_name: 'python-pods'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - analytics
+                - recommendations
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: "true"
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: '([^:]+)(?::\d+)?;(\d+)'
+            replacement: '$1:$2'
+            target_label: __address__
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            target_label: service
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -56,7 +84,7 @@ metadata:
   name: prometheus
 rules:
   - apiGroups: [""]
-    resources: ["pods", "endpoints", "services", "nodes", "nodes/metrics"]
+    resources: ["pods", "endpoints", "services", "nodes", "nodes/metrics", "namespaces"]
     verbs: ["get", "list", "watch"]
   - nonResourceURLs: ["/metrics"]
     verbs: ["get"]

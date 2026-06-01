@@ -1,10 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: data-service
+  name: user-service
   namespace: videostreamingplatform
   labels:
-    app: data-service
+    app: user-service
 spec:
   replicas: 1
   strategy:
@@ -14,44 +14,48 @@ spec:
       maxUnavailable: 0
   selector:
     matchLabels:
-      app: data-service
+      app: user-service
   template:
     metadata:
       labels:
-        app: data-service
+        app: user-service
     spec:
       containers:
-        - name: data-service
-          image: videostreamingplatform/data-service:latest
+        - name: user-service
+          image: videostreamingplatform/userservice:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 8081
+              containerPort: 8082
               protocol: TCP
           envFrom:
             - configMapRef:
                 name: app-config
           env:
             - name: HTTP_PORT
-              value: "8081"
+              value: "8082"
             - name: MYSQL_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: db-credentials
                   key: password
-            # Gate playback/download behind an active subscription.
             - name: JWT_SIGNING_SECRET
               valueFrom:
                 secretKeyRef:
                   name: auth-secrets
                   key: jwt-signing-secret
+            # Payment: mock provider for local (no external account).
+            - name: PAYMENT_PROVIDER
+              value: "mock"
+            - name: PUBLIC_BASE_URL
+              value: "http://localhost:30082"
           resources:
             requests:
-              cpu: 200m
-              memory: 256Mi
+              cpu: 100m
+              memory: 128Mi
             limits:
-              cpu: 1000m
-              memory: 1Gi
+              cpu: 500m
+              memory: 512Mi
           livenessProbe:
             httpGet:
               path: /health

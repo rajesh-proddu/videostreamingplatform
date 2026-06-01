@@ -8,8 +8,9 @@ import (
 // via SHA-256 checksum comparison.
 func TestDownloadAgent(t *testing.T) {
 	cfg := LoadConfig(t)
-	c := NewClient(cfg.MetadataURL, cfg.DataURL)
+	c := NewClient(cfg.MetadataURL, cfg.DataURL, cfg.UserURL)
 	requireHealthy(t, c)
+	ensureEntitled(t, c)
 
 	const fileSize = 6 * 1024 * 1024 // 6 MB → 2 chunks
 	payload := randomPayload(t, fileSize)

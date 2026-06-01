@@ -24,7 +24,7 @@ help:
 	@echo "  make terraform-apply  - Apply Terraform changes"
 	@echo "  make clean            - Clean build artifacts"
 
-build: build-dataservice build-metadataservice
+build: build-dataservice build-metadataservice build-userservice
 	@echo "✓ All services built"
 
 build-dataservice:
@@ -35,7 +35,11 @@ build-metadataservice:
 	@echo "Building metadataservice..."
 	cd $(REPO_ROOT) && CGO_ENABLED=0 GOOS=linux go build -o bin/metadataservice ./metadataservice
 
-test: test-dataservice test-metadataservice
+build-userservice:
+	@echo "Building userservice..."
+	cd $(REPO_ROOT) && CGO_ENABLED=0 GOOS=linux go build -o bin/userservice ./userservice
+
+test: test-dataservice test-metadataservice test-userservice
 
 test-dataservice:
 	@echo "Testing dataservice..."
@@ -44,6 +48,10 @@ test-dataservice:
 test-metadataservice:
 	@echo "Testing metadataservice..."
 	cd $(REPO_ROOT) && go test -v -race -coverprofile=coverage-metadataservice.out ./metadataservice/...
+
+test-userservice:
+	@echo "Testing userservice..."
+	cd $(REPO_ROOT) && go test -v -race -coverprofile=coverage-userservice.out ./userservice/...
 
 test-coverage: test
 	@echo "Coverage reports generated: coverage-*.out"
@@ -63,7 +71,7 @@ swagger:
 	cd $(REPO_ROOT)/dataservice && swag init -g main.go -o docs
 	@echo "✓ Swagger docs generated"
 
-run: run-dataservice run-metadataservice
+run: run-dataservice run-metadataservice run-userservice
 
 run-dataservice:
 	@echo "Running dataservice (port 8081 HTTP, 50051 gRPC)..."
@@ -73,15 +81,21 @@ run-metadataservice:
 	@echo "Running metadataservice (port 8080 HTTP)..."
 	cd $(REPO_ROOT) && go run ./metadataservice
 
-docker-build: build-dataservice build-metadataservice
+run-userservice:
+	@echo "Running userservice (port 8082 HTTP)..."
+	cd $(REPO_ROOT) && HTTP_PORT=8082 go run ./userservice
+
+docker-build: build-dataservice build-metadataservice build-userservice
 	@echo "Building Docker images..."
 	cd $(REPO_ROOT) && docker build -f build/docker/dataservice.Dockerfile -t $(REGISTRY)/dataservice:$(VERSION) .
 	cd $(REPO_ROOT) && docker build -f build/docker/metadataservice.Dockerfile -t $(REGISTRY)/metadataservice:$(VERSION) .
+	cd $(REPO_ROOT) && docker build -f build/docker/userservice.Dockerfile -t $(REGISTRY)/userservice:$(VERSION) .
 
 docker-push:
 	@echo "Pushing Docker images to $(REGISTRY)..."
 	docker push $(REGISTRY)/dataservice:$(VERSION)
 	docker push $(REGISTRY)/metadataservice:$(VERSION)
+	docker push $(REGISTRY)/userservice:$(VERSION)
 
 deploy-local:
 	@echo "Deploying to local Kind cluster..."

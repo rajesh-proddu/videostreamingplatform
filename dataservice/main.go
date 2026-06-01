@@ -110,7 +110,17 @@ func main() {
 	mux.HandleFunc("POST /uploads/{uploadId}/chunks", uploadHandler.Upload)
 	mux.HandleFunc("GET /uploads/{uploadId}/progress", uploadHandler.GetUploadProgress)
 	mux.HandleFunc("POST /uploads/{uploadId}/complete", uploadHandler.CompleteUpload)
-	mux.HandleFunc("GET /videos/{id}/download", uploadHandler.Download)
+
+	// Gate playback/download behind an active subscription when JWT enforcement is
+	// configured. With JWT_SIGNING_SECRET unset, the endpoint stays open (no auth).
+	var downloadHandler http.Handler = http.HandlerFunc(uploadHandler.Download)
+	if cfg.JWTSigningSecret != "" {
+		downloadHandler = middleware.JWTAuth(cfg.JWTSigningSecret)(middleware.RequireEntitlement(downloadHandler))
+		logger.Println("Download endpoint gated: active subscription required")
+	} else {
+		logger.Println("WARNING: JWT_SIGNING_SECRET unset — download endpoint is open (no paywall)")
+	}
+	mux.Handle("GET /videos/{id}/download", downloadHandler)
 	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	// Initialize Redis for rate limiting (best-effort: nil = in-memory fallback)

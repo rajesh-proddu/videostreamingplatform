@@ -38,3 +38,24 @@ spec:
       port: 8081
       targetPort: 8081
       protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: videostreamingplatform
+  labels:
+    app: user-service
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+spec:
+  type: LoadBalancer
+  selector:
+    app: user-service
+  ports:
+    - name: http
+      port: 8082
+      targetPort: 8082
+      protocol: TCP

@@ -16,6 +16,7 @@ import (
 	"github.com/yourusername/videostreamingplatform/dataservice/storage"
 	"github.com/yourusername/videostreamingplatform/utils/events"
 	"github.com/yourusername/videostreamingplatform/utils/kafka"
+	"github.com/yourusername/videostreamingplatform/utils/middleware"
 	"github.com/yourusername/videostreamingplatform/utils/observability"
 )
 
@@ -225,7 +226,16 @@ func (h *UploadHandler) Download(w http.ResponseWriter, r *http.Request) {
 	// Partial (Range) requests come from player scrubbing/buffering; those
 	// clients are expected to report watch telemetry themselves.
 	isFull := rangeHeader == ""
-	userID := r.URL.Query().Get("user_id")
+	// Prefer the verified identity from the JWT (set by the auth middleware when
+	// enforcement is enabled); fall back to the legacy header/query when the
+	// endpoint is open.
+	userID := ""
+	if claims, ok := middleware.ClaimsFromContext(r.Context()); ok {
+		userID = claims.Subject
+	}
+	if userID == "" {
+		userID = r.URL.Query().Get("user_id")
+	}
 	if userID == "" {
 		userID = r.Header.Get("X-User-ID")
 	}

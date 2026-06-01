@@ -224,6 +224,8 @@ services:
       RATE_LIMIT_PER_MIN: "100000"
       RATE_LIMIT_BURST: "10000"
       MYSQL_MAX_CONN: "50"
+      # Shared with userservice — gates download behind an active subscription.
+      JWT_SIGNING_SECRET: dev-shared-jwt-secret
     ports:
       - "8081:8081"
       - "50051:50051"
@@ -237,6 +239,42 @@ services:
       - videostreamingplatform-infra
     healthcheck:
       test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8081/health || exit 1"]
+      timeout: 3s
+      retries: 10
+      interval: 5s
+
+  userservice:
+    build:
+      context: ..
+      dockerfile: build/docker/userservice.Dockerfile
+    container_name: videostreamingplatform-userservice
+    environment:
+      ENVIRONMENT: dev
+      LOG_LEVEL: info
+      DEBUG_MODE: "true"
+      HTTP_PORT: "8082"
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_USER: videouser
+      MYSQL_PASSWORD: videopass
+      MYSQL_DATABASE: videoplatform
+      MYSQL_MAX_CONN: "50"
+      OTEL_ENABLED: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
+      # Shared with dataservice so issued tokens verify there.
+      JWT_SIGNING_SECRET: dev-shared-jwt-secret
+      # Payment: mock provider for local dev (no external account needed).
+      PAYMENT_PROVIDER: mock
+      PUBLIC_BASE_URL: http://localhost:8082
+    ports:
+      - "8082:8082"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - videostreamingplatform
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8082/health || exit 1"]
       timeout: 3s
       retries: 10
       interval: 5s

@@ -10,8 +10,9 @@ import (
 // in parallel to verify the platform handles concurrent transfers.
 func TestConcurrentAgents(t *testing.T) {
 	cfg := LoadConfig(t)
-	c := NewClient(cfg.MetadataURL, cfg.DataURL)
+	c := NewClient(cfg.MetadataURL, cfg.DataURL, cfg.UserURL)
 	requireHealthy(t, c)
+	ensureEntitled(t, c)
 
 	const (
 		numAgents = 5
