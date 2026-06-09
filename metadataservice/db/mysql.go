@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/yourusername/videostreamingplatform/metadataservice/models"
@@ -13,11 +14,15 @@ type MySQL struct {
 	db *sql.DB
 }
 
-func NewMySQL(dsn string) (*MySQL, error) {
+func NewMySQL(dsn string, maxOpenConns int) (*MySQL, error) {
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
+
+	db.SetMaxOpenConns(maxOpenConns)
+	db.SetMaxIdleConns(maxOpenConns / 2)
+	db.SetConnMaxLifetime(5 * time.Minute)
 
 	// Test connection
 	if err := db.Ping(); err != nil {

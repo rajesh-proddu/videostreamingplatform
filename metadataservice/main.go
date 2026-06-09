@@ -54,7 +54,7 @@ func main() {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
 		cfg.MySQLUser, cfg.MySQLPassword, cfg.MySQLHost, cfg.MySQLPort, cfg.MySQLDatabase)
 
-	database, err := db.NewMySQL(dsn)
+	database, err := db.NewMySQL(dsn, cfg.MySQLMaxConn)
 	if err != nil {
 		logger.Fatalf("Failed to connect to MySQL: %v", err)
 	}
