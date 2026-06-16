@@ -53,6 +53,9 @@ type Store interface {
 	// ListStalePendingSubscriptions returns PENDING_PAYMENT subscriptions created
 	// before the cutoff (sweeper).
 	ListStalePendingSubscriptions(ctx context.Context, cutoff time.Time) ([]*models.Subscription, error)
+	// ListSubscriptionsExpiringBetween returns ACTIVE subscriptions whose
+	// current_period_end falls in [from, to] (the expiring-soon scan).
+	ListSubscriptionsExpiringBetween(ctx context.Context, from, to time.Time) ([]*models.Subscription, error)
 
 	// Payments
 	CreatePayment(ctx context.Context, p *models.Payment) error

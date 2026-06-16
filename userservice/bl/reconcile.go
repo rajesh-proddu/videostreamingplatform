@@ -6,6 +6,7 @@ import (
 
 	"github.com/yourusername/videostreamingplatform/userservice/models"
 	"github.com/yourusername/videostreamingplatform/userservice/payment"
+	"github.com/yourusername/videostreamingplatform/utils/events"
 )
 
 // Reconcile is the backstop for missed webhooks: it polls the gateway for the
@@ -56,10 +57,36 @@ func (s *BillingService) Sweep(ctx context.Context, maxAge time.Duration) error 
 	return nil
 }
 
-// RunBackgroundJobs runs Reconcile and Sweep on a ticker until ctx is cancelled.
-func (s *BillingService) RunBackgroundJobs(ctx context.Context, interval, pendingMaxAge time.Duration) {
+// ScanExpiring emits a SUBSCRIPTION_EXPIRING event for every active subscription
+// whose access window ends within `window` from now — the "your plan is about to
+// expire" notification. Downstream delivery is idempotent on a deterministic
+// dedupe key, so re-running the scan does not produce duplicate notifications.
+func (s *BillingService) ScanExpiring(ctx context.Context, window time.Duration) error {
+	now := timeNow()
+	subs, err := s.store.ListSubscriptionsExpiringBetween(ctx, now, now.Add(window))
+	if err != nil {
+		return err
+	}
+	for _, sub := range subs {
+		s.emitSubscriptionEvent(ctx, events.SubscriptionExpiring, sub)
+	}
+	return nil
+}
+
+// RunBackgroundJobs runs Reconcile + Sweep on the `interval` ticker and the
+// expiring-subscription scan on the `expiringScanInterval` ticker, until ctx is
+// cancelled. The expiring scan also runs once at startup so a redeploy doesn't
+// leave a full interval with no scan.
+func (s *BillingService) RunBackgroundJobs(ctx context.Context, interval, pendingMaxAge, expiringScanInterval, expiringWindow time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
+	expiringTicker := time.NewTicker(expiringScanInterval)
+	defer expiringTicker.Stop()
+
+	if err := s.ScanExpiring(ctx, expiringWindow); err != nil {
+		s.logger.Printf("expiring scan (startup): %v", err)
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -70,6 +97,10 @@ func (s *BillingService) RunBackgroundJobs(ctx context.Context, interval, pendin
 			}
 			if err := s.Sweep(ctx, pendingMaxAge); err != nil {
 				s.logger.Printf("sweep job: %v", err)
+			}
+		case <-expiringTicker.C:
+			if err := s.ScanExpiring(ctx, expiringWindow); err != nil {
+				s.logger.Printf("expiring scan job: %v", err)
 			}
 		}
 	}

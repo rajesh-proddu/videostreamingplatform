@@ -11,6 +11,8 @@ import (
 	"github.com/yourusername/videostreamingplatform/userservice/dl"
 	"github.com/yourusername/videostreamingplatform/userservice/models"
 	"github.com/yourusername/videostreamingplatform/userservice/payment"
+	"github.com/yourusername/videostreamingplatform/utils/events"
+	"github.com/yourusername/videostreamingplatform/utils/kafka"
 )
 
 // BillingService owns plans, subscriptions, payments, webhook processing, and
@@ -21,14 +23,52 @@ type BillingService struct {
 	provider  payment.Provider
 	publicURL string
 	logger    *log.Logger
+	producer  kafka.Producer // optional; nil disables subscription event emission
 }
 
 // timeNow is indirected so tests can control time.
 var timeNow = time.Now
 
+// BillingOption configures optional BillingService dependencies.
+type BillingOption func(*BillingService)
+
+// WithKafkaProducer configures the service to emit subscription lifecycle events
+// to Kafka. When unset, emission is a no-op.
+func WithKafkaProducer(p kafka.Producer) BillingOption {
+	return func(s *BillingService) { s.producer = p }
+}
+
 // NewBillingService constructs a BillingService.
-func NewBillingService(store dl.Store, provider payment.Provider, publicURL string, logger *log.Logger) *BillingService {
-	return &BillingService{store: store, provider: provider, publicURL: publicURL, logger: logger}
+func NewBillingService(store dl.Store, provider payment.Provider, publicURL string, logger *log.Logger, opts ...BillingOption) *BillingService {
+	s := &BillingService{store: store, provider: provider, publicURL: publicURL, logger: logger}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
+}
+
+// emitSubscriptionEvent publishes a subscription lifecycle event keyed by user id.
+// Best-effort: a nil producer is a no-op and publish failures are logged, never
+// propagated — notification delivery must not break the billing path.
+func (s *BillingService) emitSubscriptionEvent(ctx context.Context, eventType string, sub *models.Subscription) {
+	if s.producer == nil {
+		return
+	}
+	ev := events.NewSubscriptionEvent(eventType, events.SubscriptionPayload{
+		UserID:           sub.UserID,
+		SubscriptionID:   sub.ID,
+		PlanID:           sub.PlanID,
+		Status:           string(sub.Status),
+		CurrentPeriodEnd: sub.CurrentPeriodEnd,
+	})
+	value, err := ev.Marshal()
+	if err != nil {
+		s.logger.Printf("WARNING: marshal subscription event %s for %s: %v", eventType, sub.ID, err)
+		return
+	}
+	if err := s.producer.Publish(ctx, []byte(sub.UserID), value); err != nil {
+		s.logger.Printf("WARNING: publish subscription event %s for %s: %v", eventType, sub.ID, err)
+	}
 }
 
 // SubscribeResult is returned from Subscribe.
@@ -131,7 +171,11 @@ func (s *BillingService) activate(ctx context.Context, sub *models.Subscription,
 	end := time.Now().Add(time.Duration(plan.PeriodDays) * 24 * time.Hour)
 	sub.Status = models.SubActive
 	sub.CurrentPeriodEnd = &end
-	return s.store.UpdateSubscription(ctx, sub)
+	if err := s.store.UpdateSubscription(ctx, sub); err != nil {
+		return err
+	}
+	s.emitSubscriptionEvent(ctx, events.SubscriptionActivated, sub)
+	return nil
 }
 
 // paymentTransitions is the allowed payment state machine. CAPTURED and FAILED
