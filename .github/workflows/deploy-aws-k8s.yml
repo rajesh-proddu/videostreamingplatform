@@ -45,6 +45,7 @@ jobs:
           RDS_ENDPOINT: ${{ secrets.RDS_ENDPOINT }}
           RDS_MASTER_USER_SECRET_ARN: ${{ secrets.RDS_MASTER_USER_SECRET_ARN }}
           CDN_DISTRIBUTION_ID: ${{ secrets.CDN_DISTRIBUTION_ID }}
+          JWT_SIGNING_SECRET: ${{ secrets.JWT_SIGNING_SECRET }}
           INPUT_ENVIRONMENT: ${{ github.event.inputs.environment }}
           INPUT_IMAGE_TAG: ${{ github.event.inputs.image_tag }}
         run: |
@@ -52,7 +53,7 @@ jobs:
           for var in AWS_ROLE_ARN S3_VIDEOS_BUCKET OPENSEARCH_ENDPOINT REDIS_ENDPOINT \
                      KAFKA_BROKERS IRSA_DATA_ROLE_ARN IRSA_METADATA_ROLE_ARN \
                      RDS_ENDPOINT RDS_MASTER_USER_SECRET_ARN CDN_DISTRIBUTION_ID \
-                     INPUT_ENVIRONMENT INPUT_IMAGE_TAG; do
+                     JWT_SIGNING_SECRET INPUT_ENVIRONMENT INPUT_IMAGE_TAG; do
             if [ -z "${!var}" ]; then
               missing+=("$var")
             fi
@@ -84,10 +85,13 @@ jobs:
         run: |
           CURRENT_META=$(kubectl get deployment/metadata-service -n videostreamingplatform -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || echo "none")
           CURRENT_DATA=$(kubectl get deployment/data-service -n videostreamingplatform -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || echo "none")
+          CURRENT_USER=$(kubectl get deployment/user-service -n videostreamingplatform -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || echo "none")
           echo "metadata_image=${CURRENT_META}" >> "$GITHUB_OUTPUT"
           echo "data_image=${CURRENT_DATA}" >> "$GITHUB_OUTPUT"
+          echo "user_image=${CURRENT_USER}" >> "$GITHUB_OUTPUT"
           echo "Current metadata image: ${CURRENT_META}"
           echo "Current data image: ${CURRENT_DATA}"
+          echo "Current user image: ${CURRENT_USER}"
 
       - name: Deploy configmaps and secrets
         run: |
@@ -108,6 +112,16 @@ jobs:
             --from-literal=database="videoplatform" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+          # Seed the shared HS256 secret used by userservice (signs JWTs) and
+          # dataservice (verifies them). Both manifests mount auth-secrets and
+          # fail to start without it. Created idempotently — never overwritten,
+          # so previously issued tokens keep validating across redeploys.
+          if ! kubectl get secret auth-secrets -n videostreamingplatform >/dev/null 2>&1; then
+            kubectl create secret generic auth-secrets \
+              --namespace videostreamingplatform \
+              --from-literal=jwt-signing-secret="${{ secrets.JWT_SIGNING_SECRET }}"
+          fi
+
           # Apply configmap with dynamic values
           export S3_BUCKET="${{ secrets.S3_VIDEOS_BUCKET }}"
           export AWS_REGION="${{ env.AWS_REGION }}"
@@ -123,6 +137,10 @@ jobs:
           envsubst < k8s/aws/manifests/metadata-service-deploy.yaml | kubectl apply -f -
           envsubst < k8s/aws/manifests/data-service-deploy.yaml | kubectl apply -f -
 
+          # userservice — no templated vars (reads rds-credentials / auth-secrets
+          # Secrets + app-config ConfigMap directly), so apply as-is.
+          kubectl apply -f k8s/aws/manifests/user-service-deploy.yaml
+
           # Deploy cdn-invalidator worker
           export CDN_INVALIDATOR_IMAGE="ghcr.io/${{ github.repository }}/cdn-invalidator:${{ github.event.inputs.image_tag }}"
           export CDN_DISTRIBUTION_ID="${{ secrets.CDN_DISTRIBUTION_ID }}"
@@ -135,12 +153,15 @@ jobs:
             -n videostreamingplatform
           kubectl set image deployment/data-service data-service=ghcr.io/${{ github.repository }}/data-service:${{ github.event.inputs.image_tag }} \
             -n videostreamingplatform
+          kubectl set image deployment/user-service user-service=ghcr.io/${{ github.repository }}/userservice:${{ github.event.inputs.image_tag }} \
+            -n videostreamingplatform
 
       - name: Wait for rollout
         id: rollout
         run: |
           kubectl rollout status deployment/metadata-service -n videostreamingplatform --timeout=10m
           kubectl rollout status deployment/data-service -n videostreamingplatform --timeout=10m
+          kubectl rollout status deployment/user-service -n videostreamingplatform --timeout=10m
 
       - name: Rollback on failure
         if: failure() && steps.rollout.outcome == 'failure'
@@ -148,6 +169,7 @@ jobs:
           echo "⚠️ Deployment failed — rolling back to previous images"
           PREV_META="${{ steps.rollback-info.outputs.metadata_image }}"
           PREV_DATA="${{ steps.rollback-info.outputs.data_image }}"
+          PREV_USER="${{ steps.rollback-info.outputs.user_image }}"
 
           if [ "$PREV_META" != "none" ]; then
             kubectl set image deployment/metadata-service metadata-service="${PREV_META}" -n videostreamingplatform
@@ -161,6 +183,13 @@ jobs:
             kubectl rollout status deployment/data-service -n videostreamingplatform --timeout=5m || true
           else
             kubectl rollout undo deployment/data-service -n videostreamingplatform || true
+          fi
+
+          if [ "$PREV_USER" != "none" ]; then
+            kubectl set image deployment/user-service user-service="${PREV_USER}" -n videostreamingplatform
+            kubectl rollout status deployment/user-service -n videostreamingplatform --timeout=5m || true
+          else
+            kubectl rollout undo deployment/user-service -n videostreamingplatform || true
           fi
 
           echo "✅ Rollback complete"
