@@ -150,6 +150,28 @@ func (s *MySQLStore) ListStalePendingSubscriptions(ctx context.Context, cutoff t
 	return subs, rows.Err()
 }
 
+func (s *MySQLStore) ListSubscriptionsExpiringBetween(ctx context.Context, from, to time.Time) ([]*models.Subscription, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, user_id, plan_id, status, current_period_end, created_at, updated_at
+		 FROM subscriptions
+		 WHERE status = 'ACTIVE' AND current_period_end BETWEEN ? AND ?
+		 ORDER BY current_period_end`, from, to)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var subs []*models.Subscription
+	for rows.Next() {
+		sub, err := scanSubscriptionRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		subs = append(subs, sub)
+	}
+	return subs, rows.Err()
+}
+
 func scanSubscription(row *sql.Row) (*models.Subscription, error) {
 	sub := &models.Subscription{}
 	var end sql.NullTime

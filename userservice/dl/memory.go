@@ -189,6 +189,21 @@ func (s *InMemoryStore) ListStalePendingSubscriptions(_ context.Context, cutoff 
 	return out, nil
 }
 
+func (s *InMemoryStore) ListSubscriptionsExpiringBetween(_ context.Context, from, to time.Time) ([]*models.Subscription, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []*models.Subscription
+	for _, sub := range s.subscriptions {
+		if sub.Status == models.SubActive && sub.CurrentPeriodEnd != nil &&
+			!sub.CurrentPeriodEnd.Before(from) && !sub.CurrentPeriodEnd.After(to) {
+			cp := *sub
+			out = append(out, &cp)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].CurrentPeriodEnd.Before(*out[j].CurrentPeriodEnd) })
+	return out, nil
+}
+
 // --- Payments ---
 
 func (s *InMemoryStore) CreatePayment(_ context.Context, p *models.Payment) error {

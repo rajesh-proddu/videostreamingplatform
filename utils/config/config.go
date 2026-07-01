@@ -42,9 +42,10 @@ type Config struct {
 	DebugMode bool
 
 	// Kafka configuration
-	KafkaBrokers    string
-	KafkaVideoTopic string
-	KafkaWatchTopic string
+	KafkaBrokers           string
+	KafkaVideoTopic        string
+	KafkaWatchTopic        string
+	KafkaSubscriptionTopic string
 
 	// Upload store selector (memory or mysql)
 	UploadStore string
@@ -107,6 +108,7 @@ func New(serviceName string) *Config {
 		KafkaBrokers:             getEnvOrDefault("KAFKA_BROKERS", "localhost:9092"),
 		KafkaVideoTopic:          getEnvOrDefault("KAFKA_VIDEO_TOPIC", "video-events"),
 		KafkaWatchTopic:          getEnvOrDefault("KAFKA_WATCH_TOPIC", "watch-events"),
+		KafkaSubscriptionTopic:   getEnvOrDefault("KAFKA_SUBSCRIPTION_TOPIC", "subscription-events"),
 		UploadStore:              getEnvOrDefault("UPLOAD_STORE", "mysql"),
 		RecommendationServiceURL: getEnvOrDefault("RECOMMENDATION_SERVICE_URL", ""),
 		RedisAddr:                getEnvOrDefault("REDIS_ADDR", ""),

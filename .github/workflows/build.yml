@@ -6,6 +6,7 @@ on:
     paths:
       - 'metadataservice/**'
       - 'dataservice/**'
+      - 'userservice/**'
       - 'workers/**'
       - 'utils/**'
       - 'build/docker/**'
@@ -37,6 +38,8 @@ jobs:
             dockerfile: build/docker/metadataservice.Dockerfile
           - name: data-service
             dockerfile: build/docker/dataservice.Dockerfile
+          - name: userservice
+            dockerfile: build/docker/userservice.Dockerfile
           - name: cdn-invalidator
             dockerfile: build/docker/cdn-invalidator.Dockerfile
     steps:

@@ -261,6 +261,9 @@ services:
       MYSQL_MAX_CONN: "50"
       OTEL_ENABLED: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
+      # Emit subscription lifecycle events for the notifications platform.
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_SUBSCRIPTION_TOPIC: subscription-events
       # Shared with dataservice so issued tokens verify there.
       JWT_SIGNING_SECRET: dev-shared-jwt-secret
       # Payment: mock provider for local dev (no external account needed).
@@ -273,8 +276,52 @@ services:
         condition: service_healthy
     networks:
       - videostreamingplatform
+      - videostreamingplatform-infra
     healthcheck:
       test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8082/health || exit 1"]
+      timeout: 3s
+      retries: 10
+      interval: 5s
+
+  notifications:
+    build:
+      context: ../../videostreamingplatform-notifications
+      dockerfile: build/Dockerfile
+    container_name: videostreamingplatform-notifications
+    environment:
+      NOTIF_HTTP_PORT: "8083"
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_SUBSCRIPTION_TOPIC: subscription-events
+      KAFKA_VIDEO_TOPIC: video-events
+      KAFKA_NOTIFICATION_TOPIC: notification-events
+      KAFKA_NOTIFICATION_DLQ_TOPIC: notification-events-dlq
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_USER: videouser
+      MYSQL_PASSWORD: videopass
+      MYSQL_DATABASE: videoplatform
+      REDIS_ADDR: redis:6379
+      # Shared with userservice/dataservice so issued tokens verify here.
+      JWT_SIGNING_SECRET: dev-shared-jwt-secret
+      # Weekly-report source: pgvector on the infra network.
+      PGHOST: pgvector
+      PGPORT: "5432"
+      PGUSER: recouser
+      PGPASSWORD: recopass
+      PGDATABASE: recommendations
+      PGSSLMODE: disable
+    ports:
+      - "8083:8083"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - videostreamingplatform
+      - videostreamingplatform-infra
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8083/health || exit 1"]
       timeout: 3s
       retries: 10
       interval: 5s

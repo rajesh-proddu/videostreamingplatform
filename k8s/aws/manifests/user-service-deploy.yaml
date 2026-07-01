@@ -56,6 +56,15 @@ spec:
                   key: jwt-signing-secret
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: "jaeger.observability.svc.cluster.local:4318"
+            # Kafka producer for subscription lifecycle events (notifications).
+            # Without KAFKA_BROKERS the producer is disabled (no-op).
+            - name: KAFKA_BROKERS
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: KAFKA_BROKERS
+            - name: KAFKA_SUBSCRIPTION_TOPIC
+              value: "subscription-events"
             # Payment provider. Switch to "razorpay" and supply razorpay-credentials
             # (key id/secret/webhook secret) to take real test-mode payments.
             - name: PAYMENT_PROVIDER

@@ -44,6 +44,15 @@ spec:
                 secretKeyRef:
                   name: auth-secrets
                   key: jwt-signing-secret
+            # Kafka producer for subscription lifecycle events (notifications).
+            # Without KAFKA_BROKERS the producer is disabled (no-op).
+            - name: KAFKA_BROKERS
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: KAFKA_BROKERS
+            - name: KAFKA_SUBSCRIPTION_TOPIC
+              value: "subscription-events"
             # Payment: mock provider for local (no external account).
             - name: PAYMENT_PROVIDER
               value: "mock"

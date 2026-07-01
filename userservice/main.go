@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -18,6 +19,7 @@ import (
 	"github.com/yourusername/videostreamingplatform/userservice/payment"
 
 	"github.com/yourusername/videostreamingplatform/utils/config"
+	"github.com/yourusername/videostreamingplatform/utils/kafka"
 	"github.com/yourusername/videostreamingplatform/utils/middleware"
 	"github.com/yourusername/videostreamingplatform/utils/observability"
 )
@@ -69,14 +71,25 @@ func main() {
 		logger.Println("Mock payment provider enabled")
 	}
 
+	// Optional Kafka producer for subscription lifecycle events. Skipped when
+	// KAFKA_BROKERS is unset, exactly like metadata/data services.
+	var billingOpts []bl.BillingOption
+	if cfg.KafkaBrokers != "" {
+		brokers := strings.Split(cfg.KafkaBrokers, ",")
+		subProducer := kafka.NewProducer(brokers, cfg.KafkaSubscriptionTopic)
+		defer func() { _ = subProducer.Close() }()
+		billingOpts = append(billingOpts, bl.WithKafkaProducer(subProducer))
+		logger.Printf("Kafka subscription producer enabled → %s (topic: %s)", cfg.KafkaBrokers, cfg.KafkaSubscriptionTopic)
+	}
+
 	// Services.
 	authService := bl.NewAuthService(store, jwtSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
-	billingService := bl.NewBillingService(store, provider, cfg.PublicBaseURL, logger.Logger)
+	billingService := bl.NewBillingService(store, provider, cfg.PublicBaseURL, logger.Logger, billingOpts...)
 
-	// Background reconciliation + sweeper.
+	// Background reconciliation + sweeper + expiring-subscription scan.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go billingService.RunBackgroundJobs(ctx, 1*time.Minute, 30*time.Minute)
+	go billingService.RunBackgroundJobs(ctx, 1*time.Minute, 30*time.Minute, 24*time.Hour, 7*24*time.Hour)
 
 	// Handlers.
 	authHandler := handlers.NewAuthHandler(authService)
