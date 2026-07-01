@@ -3,8 +3,8 @@ package component
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -32,7 +32,7 @@ func (m *mockVideoStore) CreateVideo(_ context.Context, video *models.Video) err
 func (m *mockVideoStore) GetVideo(_ context.Context, id string) (*models.Video, error) {
 	v, ok := m.videos[id]
 	if !ok {
-		return nil, fmt.Errorf("not found")
+		return nil, sql.ErrNoRows
 	}
 	return v, nil
 }
