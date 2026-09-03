@@ -113,11 +113,16 @@ func (s *MySQLStore) UpdateSubscription(ctx context.Context, sub *models.Subscri
 }
 
 func (s *MySQLStore) GetActiveSubscription(ctx context.Context, userID string) (*models.Subscription, error) {
+	// Rank a paid plan above a free one before falling back to the later period
+	// end. Ordering by period end alone let the free plan's ~100-year window
+	// (period_days 36500) permanently outrank a 30-day premium one, so a user who
+	// ever took the free plan could never be entitled — see entitlement().
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, user_id, plan_id, status, current_period_end, created_at, updated_at
-		 FROM subscriptions
-		 WHERE user_id = ? AND status = 'ACTIVE' AND current_period_end > NOW()
-		 ORDER BY current_period_end DESC LIMIT 1`, userID)
+		`SELECT s.id, s.user_id, s.plan_id, s.status, s.current_period_end, s.created_at, s.updated_at
+		 FROM subscriptions s
+		 JOIN plans p ON p.id = s.plan_id
+		 WHERE s.user_id = ? AND s.status = 'ACTIVE' AND s.current_period_end > NOW()
+		 ORDER BY p.amount_minor DESC, s.current_period_end DESC LIMIT 1`, userID)
 	return scanSubscription(row)
 }
 

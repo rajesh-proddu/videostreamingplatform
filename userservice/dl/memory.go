@@ -144,7 +144,7 @@ func (s *InMemoryStore) GetActiveSubscription(_ context.Context, userID string) 
 	var best *models.Subscription
 	for _, sub := range s.subscriptions {
 		if sub.UserID == userID && sub.IsActive(now) {
-			if best == nil || sub.CurrentPeriodEnd.After(*best.CurrentPeriodEnd) {
+			if best == nil || s.outranks(sub, best) {
 				best = sub
 			}
 		}
@@ -154,6 +154,25 @@ func (s *InMemoryStore) GetActiveSubscription(_ context.Context, userID string) 
 	}
 	cp := *best
 	return &cp, nil
+}
+
+// outranks reports whether a should be preferred over b as the user's current
+// subscription. A paid plan always beats a free one; only then does the later
+// period end break the tie. Ordering by period end alone would let the free
+// plan's ~100-year window (period_days 36500) permanently outrank a 30-day
+// premium one, so a user who ever took the free plan could never be entitled.
+func (s *InMemoryStore) outranks(a, b *models.Subscription) bool {
+	if av, bv := s.planAmount(a.PlanID), s.planAmount(b.PlanID); av != bv {
+		return av > bv
+	}
+	return a.CurrentPeriodEnd.After(*b.CurrentPeriodEnd)
+}
+
+func (s *InMemoryStore) planAmount(planID string) int64 {
+	if p, ok := s.plans[planID]; ok {
+		return p.AmountMinor
+	}
+	return 0
 }
 
 func (s *InMemoryStore) GetOpenSubscription(_ context.Context, userID, planID string) (*models.Subscription, error) {

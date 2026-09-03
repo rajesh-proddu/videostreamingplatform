@@ -133,6 +133,49 @@ func TestFreePlanDoesNotGrantEntitlement(t *testing.T) {
 	}
 }
 
+// A user who took the free plan first must still become entitled after paying
+// for premium. Both are ACTIVE at once, and the free plan's period_days of 36500
+// puts its current_period_end ~100 years out, so ranking active subscriptions by
+// period end alone made the free row win forever and entitlement() read its
+// zero amount_minor — silently capping such a user at unentitled for good.
+func TestPremiumEntitlesAfterFreePlan(t *testing.T) {
+	e := newTestEnv()
+	ctx := context.Background()
+	uid := e.registerUser(t, "freethenpaid@example.com")
+
+	if _, err := e.billing.Subscribe(ctx, uid, "free"); err != nil {
+		t.Fatalf("subscribe free: %v", err)
+	}
+
+	res, err := e.billing.Subscribe(ctx, uid, "premium")
+	if err != nil {
+		t.Fatalf("subscribe premium: %v", err)
+	}
+	ref := e.referenceID(t, res.SubscriptionID)
+	body, sig := e.mock.BuildSignedWebhook(ref, "pay_free_then_paid", true)
+	if err := e.billing.ProcessWebhook(ctx, body, sig, "evt_free_then_paid"); err != nil {
+		t.Fatalf("process webhook: %v", err)
+	}
+
+	// The paid subscription, not the long-dated free one, is the current plan.
+	sub, err := e.store.GetActiveSubscription(ctx, uid)
+	if err != nil {
+		t.Fatalf("get active subscription: %v", err)
+	}
+	if sub.ID != res.SubscriptionID {
+		t.Fatalf("expected the premium subscription %s to be current, got %s", res.SubscriptionID, sub.ID)
+	}
+
+	pair, err := e.authSvc.Login(ctx, "freethenpaid@example.com", "hunter2")
+	if err != nil {
+		t.Fatalf("login: %v", err)
+	}
+	claims, _ := auth.Parse(testSecret, pair.AccessToken)
+	if !claims.Entitled || claims.Plan != "premium" {
+		t.Fatalf("expected entitled premium claim after paying, got entitled=%v plan=%s", claims.Entitled, claims.Plan)
+	}
+}
+
 func mustUserID(t *testing.T, e *testEnv, email string) string {
 	t.Helper()
 	u, err := e.store.GetUserByEmail(context.Background(), email)
