@@ -224,6 +224,7 @@ services:
       RATE_LIMIT_PER_MIN: "100000"
       RATE_LIMIT_BURST: "10000"
       MYSQL_MAX_CONN: "50"
+      METADATA_SERVICE_URL: http://videostreamingplatform-metadataservice:8080
       # Shared with userservice — gates download behind an active subscription.
       JWT_SIGNING_SECRET: dev-shared-jwt-secret
     ports:

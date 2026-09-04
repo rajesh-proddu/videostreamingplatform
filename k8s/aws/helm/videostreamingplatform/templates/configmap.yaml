@@ -22,3 +22,4 @@ data:
   KAFKA_WATCH_TOPIC: {{ .Values.config.kafka.watchTopic }}
   ELASTICSEARCH_URL: {{ .Values.config.elasticsearch.url }}
   RECOMMENDATION_SERVICE_URL: {{ .Values.config.recommendationServiceUrl }}
+  METADATA_SERVICE_URL: {{ .Values.config.metadataServiceUrl }}

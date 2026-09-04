@@ -113,6 +113,9 @@ func (r *VideoRepository) UpdateVideo(ctx context.Context, id string, req *model
 	if req.Format != "" {
 		video.Format = req.Format
 	}
+	if req.UploadStatus != "" {
+		video.UploadStatus = req.UploadStatus
+	}
 
 	video.UpdatedAt = time.Now()
 

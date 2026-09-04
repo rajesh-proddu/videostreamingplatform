@@ -52,6 +52,10 @@ type UpdateVideoRequest struct {
 	Duration    int    `json:"duration,omitempty"`
 	SizeBytes   int64  `json:"size_bytes,omitempty"`
 	Format      string `json:"format,omitempty"`
+	// UploadStatus lets the owner of the bytes report the upload lifecycle back
+	// here. A record is created PENDING and only dataservice knows when the S3
+	// object is actually complete, so without this the status never changes.
+	UploadStatus string `json:"upload_status,omitempty"`
 }
 
 type UploadChunkRequest struct {

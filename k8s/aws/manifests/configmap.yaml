@@ -34,3 +34,6 @@ data:
 
   # Recommendation service (empty = disabled)
   RECOMMENDATION_SERVICE_URL: ""
+  # Metadata service, so dataservice can report upload completion back to the
+  # video record (empty = disabled; uploads then stay upload_status=PENDING)
+  METADATA_SERVICE_URL: http://metadata-service.videostreamingplatform.svc.cluster.local:8080

@@ -53,6 +53,10 @@ type Config struct {
 	// Recommendation service URL (empty = disabled)
 	RecommendationServiceURL string
 
+	// Metadata service URL, used by dataservice to report upload completion
+	// back to the video record (empty = disabled)
+	MetadataServiceURL string
+
 	// Redis cache configuration
 	RedisAddr     string
 	RedisPassword string
@@ -111,6 +115,7 @@ func New(serviceName string) *Config {
 		KafkaSubscriptionTopic:   getEnvOrDefault("KAFKA_SUBSCRIPTION_TOPIC", "subscription-events"),
 		UploadStore:              getEnvOrDefault("UPLOAD_STORE", "mysql"),
 		RecommendationServiceURL: getEnvOrDefault("RECOMMENDATION_SERVICE_URL", ""),
+		MetadataServiceURL:       getEnvOrDefault("METADATA_SERVICE_URL", ""),
 		RedisAddr:                getEnvOrDefault("REDIS_ADDR", ""),
 		RedisPassword:            getEnvOrDefault("REDIS_PASSWORD", ""),
 		RedisDB:                  getEnvAsInt("REDIS_DB", 0),

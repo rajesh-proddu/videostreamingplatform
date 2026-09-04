@@ -67,6 +67,9 @@ config:
     url: ""
   uploadStore: mysql
   recommendationServiceUrl: ""
+  # Lets dataservice report upload completion back to the video record.
+  # Empty leaves uploads working but their upload_status stuck at PENDING.
+  metadataServiceUrl: "http://metadata-service.videostreamingplatform.svc.cluster.local:8080"
 
 rdsCredentials:
   host: ""

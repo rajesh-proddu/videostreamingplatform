@@ -16,6 +16,7 @@ import (
 	"github.com/yourusername/videostreamingplatform/dataservice/storage"
 	"github.com/yourusername/videostreamingplatform/utils/events"
 	"github.com/yourusername/videostreamingplatform/utils/kafka"
+	"github.com/yourusername/videostreamingplatform/utils/metadata"
 	"github.com/yourusername/videostreamingplatform/utils/middleware"
 	"github.com/yourusername/videostreamingplatform/utils/observability"
 )
@@ -25,21 +26,36 @@ type UploadHandler struct {
 	service       *bl.UploadService
 	storage       *storage.S3Client
 	watchProducer kafka.Producer
+	metadata      *metadata.Client
 	logger        *log.Logger
 }
 
+// UploadHandlerOption configures optional collaborators on an UploadHandler.
+type UploadHandlerOption func(*UploadHandler)
+
+// WithMetadataClient lets the handler report upload completion back to
+// metadataservice. Optional: with no client (or an unconfigured one) uploads
+// still succeed, they just leave the video record's status untouched.
+func WithMetadataClient(c *metadata.Client) UploadHandlerOption {
+	return func(h *UploadHandler) { h.metadata = c }
+}
+
 // NewUploadHandler creates a new upload handler
-func NewUploadHandler(service *bl.UploadService, s3 *storage.S3Client, watchProducer kafka.Producer, obsLogger *observability.Logger) *UploadHandler {
+func NewUploadHandler(service *bl.UploadService, s3 *storage.S3Client, watchProducer kafka.Producer, obsLogger *observability.Logger, opts ...UploadHandlerOption) *UploadHandler {
 	var l *log.Logger
 	if obsLogger != nil {
 		l = obsLogger.Logger
 	}
-	return &UploadHandler{
+	h := &UploadHandler{
 		service:       service,
 		storage:       s3,
 		watchProducer: watchProducer,
 		logger:        l,
 	}
+	for _, opt := range opts {
+		opt(h)
+	}
+	return h
 }
 
 // InitiateUpload handles upload initiation requests
@@ -370,6 +386,15 @@ func (h *UploadHandler) CompleteUpload(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Failed to complete upload", http.StatusInternalServerError)
 		return
+	}
+
+	// Report completion back to the video record. Best-effort, like the watch
+	// event above: the object is already durable in S3, so a metadata service
+	// that is down or unset must not turn a successful upload into a failure.
+	if h.metadata.Enabled() {
+		if err := h.metadata.MarkUploadComplete(r.Context(), progress.VideoID); err != nil && h.logger != nil {
+			h.logger.Printf("Failed to mark video %s complete in metadata service: %v", progress.VideoID, err)
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

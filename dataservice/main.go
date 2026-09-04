@@ -26,6 +26,7 @@ import (
 	"github.com/yourusername/videostreamingplatform/utils/cache"
 	"github.com/yourusername/videostreamingplatform/utils/config"
 	"github.com/yourusername/videostreamingplatform/utils/kafka"
+	"github.com/yourusername/videostreamingplatform/utils/metadata"
 	"github.com/yourusername/videostreamingplatform/utils/middleware"
 	"github.com/yourusername/videostreamingplatform/utils/observability"
 
@@ -92,7 +93,17 @@ func main() {
 	uploadService := bl.NewUploadService(uploadRepo, logger.Logger)
 
 	// Initialize handlers
-	uploadHandler := handlers.NewUploadHandler(uploadService, s3Client, watchProducer, logger)
+	// Reports upload completion back to the video record. Optional: unset
+	// METADATA_SERVICE_URL leaves uploads working but statuses untouched.
+	metadataClient := metadata.NewClient(cfg.MetadataServiceURL)
+	if metadataClient.Enabled() {
+		logger.Printf("Upload completion will be reported to metadata service → %s", cfg.MetadataServiceURL)
+	} else {
+		logger.Println("METADATA_SERVICE_URL unset — uploaded videos will stay upload_status=PENDING")
+	}
+
+	uploadHandler := handlers.NewUploadHandler(uploadService, s3Client, watchProducer, logger,
+		handlers.WithMetadataClient(metadataClient))
 
 	// Set up HTTP routes for streaming
 	mux := http.NewServeMux()

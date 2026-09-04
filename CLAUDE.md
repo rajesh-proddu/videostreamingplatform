@@ -87,13 +87,14 @@ Dependency direction: `handlers → bl → dl → db`. The `bl` layer depends on
 
 All utilities live in `utils/` and are imported by both services:
 
-- **`utils/config`** — All config from env vars via `config.New(serviceName)`. Key vars: `ENVIRONMENT`, `MYSQL_*`, `S3_*`, `KAFKA_BROKERS`, `KAFKA_VIDEO_TOPIC`, `KAFKA_WATCH_TOPIC`, `UPLOAD_STORE` (`memory`|`mysql`), `OTEL_EXPORTER_OTLP_ENDPOINT`, `RECOMMENDATION_SERVICE_URL`, `REDIS_ADDR`, `REDIS_PASSWORD`, `REDIS_DB`, `CACHE_TTL_*`, `RATE_LIMIT_*`.
+- **`utils/config`** — All config from env vars via `config.New(serviceName)`. Key vars: `ENVIRONMENT`, `MYSQL_*`, `S3_*`, `KAFKA_BROKERS`, `KAFKA_VIDEO_TOPIC`, `KAFKA_WATCH_TOPIC`, `UPLOAD_STORE` (`memory`|`mysql`), `OTEL_EXPORTER_OTLP_ENDPOINT`, `RECOMMENDATION_SERVICE_URL`, `METADATA_SERVICE_URL`, `REDIS_ADDR`, `REDIS_PASSWORD`, `REDIS_DB`, `CACHE_TTL_*`, `RATE_LIMIT_*`.
 - **`utils/observability`** — Logger, OTel tracing (`InitTracer`), Prometheus metrics (`InitMetrics`). Tracing only initializes when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Metrics only when explicitly initialized.
 - **`utils/kafka`** — `Producer` interface + `KafkaProducer` impl (segmentio/kafka-go). Kafka is **optional**—both services skip it gracefully if `KAFKA_BROKERS` is empty.
 - **`utils/events`** — Avro event structs: `video_event.go` (VIDEO_CREATED/UPDATED/DELETED), `watch_event.go` (WATCH_STARTED/WATCH_COMPLETED).
 - **`utils/cache`** — Redis-backed cache (`cache.New(addr, pass, db)`). Nil-safe: all methods no-op if `c==nil` or `addr=""`. Used in `metadataservice` for video metadata caching. Key helpers: `VideoKey(id)` → `video:{id}`, `ListKey(limit, offset)` → `videos:list:{limit}:{offset}`. Env vars: `REDIS_ADDR`, `REDIS_PASSWORD`, `REDIS_DB`, `CACHE_TTL_GET_VIDEO`, `CACHE_TTL_LIST_VIDEOS`.
 - **`utils/middleware`** — `ChainMiddleware`, `LoggingMiddleware`, `ErrorHandlingMiddleware`, `RateLimiter` (per-IP token bucket). Env vars: `RATE_LIMIT_PER_MIN`, `RATE_LIMIT_BURST`.
 - **`utils/recommendations`** — HTTP client for calling the recommendations service (Python/FastAPI). Only wired in `metadataservice`.
+- **`utils/metadata`** — HTTP client for calling `metadataservice`. Only wired in `dataservice`, which uses it to report upload completion back to the video record. Same shape as `utils/recommendations`: `NewClient("")` disables it, callers check `Enabled()`. Env var `METADATA_SERVICE_URL`.
 - **`utils/errors`** — Shared error types.
 
 ### dataservice Specifics
@@ -102,6 +103,7 @@ All utilities live in `utils/` and are imported by both services:
 - `UPLOAD_STORE=memory` uses an in-memory repository (no MySQL needed)—useful for local testing without Docker.
 - The `dataservice/streaming` package defines `UploadSession` and `DefaultChunkSize` (5MB). Streaming logic for HTTP chunked upload is in `dataservice/handlers/upload.go`.
 - Watch events are published to Kafka on download completion (best-effort, non-fatal).
+- On `POST /uploads/{id}/complete`, flips the video's `upload_status` to `COMPLETED` via `utils/metadata` (best-effort, non-fatal — the bytes are already durable in S3). Without `METADATA_SERVICE_URL` set, uploads still succeed but every video stays `PENDING`, because metadataservice creates records `PENDING` and nothing else moves them.
 
 ### metadataservice Specifics
 
