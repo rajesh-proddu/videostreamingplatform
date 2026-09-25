@@ -20,6 +20,10 @@ type Recommendation struct {
 
 // Response represents the recommendation service response.
 type Response struct {
+	// RequestID identifies the impression the recommendation service logged
+	// for this response. Callers echo it back on interactions with these
+	// results so they can be attributed to the ranking that produced them.
+	RequestID       string           `json:"request_id,omitempty"`
 	UserID          string           `json:"user_id"`
 	Recommendations []Recommendation `json:"recommendations"`
 	Query           string           `json:"query,omitempty"`

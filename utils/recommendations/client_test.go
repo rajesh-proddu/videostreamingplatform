@@ -85,6 +85,42 @@ func TestGetRecommendations_Success(t *testing.T) {
 	}
 }
 
+func TestGetRecommendations_RequestIDSurvivesProxyReencode(t *testing.T) {
+	t.Parallel()
+
+	// Raw body as the Python service sends it, so the json tag is checked
+	// against the real wire name rather than round-tripped through Response.
+	const body = `{"request_id":"3f1c2a9e-0000-4000-8000-000000000001","user_id":"user1","recommendations":[],"query":null}`
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(body))
+	}))
+	defer srv.Close()
+
+	resp, err := NewClient(srv.URL).GetRecommendations(context.Background(), "user1", "", 5)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.RequestID != "3f1c2a9e-0000-4000-8000-000000000001" {
+		t.Fatalf("RequestID = %q, want the service's request_id", resp.RequestID)
+	}
+
+	// metadataservice's /recommendations handler re-encodes this struct;
+	// the field must come back out under the same name.
+	out, err := json.Marshal(resp)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var reencoded map[string]any
+	if err := json.Unmarshal(out, &reencoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if reencoded["request_id"] != resp.RequestID {
+		t.Errorf("re-encoded request_id = %v, want %q", reencoded["request_id"], resp.RequestID)
+	}
+}
+
 func TestGetRecommendations_ServerError(t *testing.T) {
 	t.Parallel()
 
